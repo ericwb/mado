@@ -1,3 +1,5 @@
+# Copyright © 2020 Eric Brown
+#
 # SPDX-License-Identifier: GPL-3.0-or-later
 import argparse
 from signal import signal
@@ -164,7 +166,6 @@ def main():
                 """Print the character associated to the key pressed"""
                 print(event)
 
-            print(window.attributes())
             window.maxsize(server_init_msg.fb_width, server_init_msg.fb_height)
 
             # Bind keypress event to handle_keypress()
