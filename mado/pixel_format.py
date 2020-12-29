@@ -21,8 +21,13 @@ class PixelFormat():
         self.red_shift = unsigned8.read(socket)
         self.green_shift = unsigned8.read(socket)
         self.blue_shift = unsigned8.read(socket)
-        self.padding = unsigned8.read(socket)
+        self.padding = [None] * 3
 
+        self.padding[0] = unsigned8.read(socket)
+        self.padding[1] = unsigned8.read(socket)
+        self.padding[2] = unsigned8.read(socket)
+        # or     CARD8 pad1;
+        #        CARD16 pad2;
     def __repr__(self):
         return 'PixelFormat: %s' % vars(self)
 

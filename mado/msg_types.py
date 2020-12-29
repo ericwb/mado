@@ -11,6 +11,7 @@ class MessageTypes(Enum):
     SERVER_CUT_TEXT = 3
 
     SET_PIXEL_FORMAT = 0
+    FIX_COLOR_MAP_ENTRIES = 1  # not currently supported
     SET_ENCODINGS = 2
     FRAMEBUFFER_UPDATE_REQUEST = 3
     KEY_EVENT = 4

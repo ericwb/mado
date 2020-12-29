@@ -25,6 +25,8 @@ RFB_VERSION_3_8 = 'RFB 003.008\n'
 RFB_VERSION_3_7 = 'RFB 003.007\n'
 RFB_VERSION_3_3 = 'RFB 003.003\n'
 
+DEFAULT_WIDTH = 640
+DEFAULT_HEIGHT = 480
 DEFAULT_PORT = 5900
 
 
@@ -59,6 +61,26 @@ class Transport(threading.Thread):
                 pass
 
 
+def resize(window, width, height):
+    frm_width = window.winfo_rootx() - window.winfo_x()
+    win_width = width + 2 * frm_width
+
+    titlebar_height = window.winfo_rooty() - window.winfo_y()
+    win_height = height + titlebar_height + frm_width
+
+    print(window.winfo_screenwidth())
+    print(window.winfo_screenheight())
+
+    x = window.winfo_screenwidth() // 2 - win_width // 2
+    y = window.winfo_screenheight() // 2 - win_height // 2
+
+    print(x)
+    print(y)
+
+    window.geometry('{}x{}+{}+{}'.format(width, height, x, y))
+    window.maxsize(width, height)
+
+
 # Main code execution
 def main():
     parser = argparse.ArgumentParser()
@@ -76,39 +98,46 @@ def main():
 
     window = tkinter.Tk()
     window.title("Mado")
-    window.minsize(640, 480)
+    window.minsize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+    resize(window, DEFAULT_WIDTH, DEFAULT_HEIGHT)
 
-    menu = tkinter.Menu(window)
-    window.config(menu=menu)
+    def showMyPreferencesDialog():
+        pass
 
-    from tkinter.filedialog import askopenfilename
+    window.option_add('*tearOff', False)
+    window.createcommand('tk::mac::ShowPreferences', showMyPreferencesDialog)
 
-    def NewFile():
-        print("New File!")
+    menubar = tkinter.Menu(window)
+    app_menu = tkinter.Menu(menubar, name='apple')
+    menubar.add_cascade(menu=app_menu)
+    app_menu.add_command(label='About Mado')
+    app_menu.add_separator()
 
     def OpenFile():
-        name = askopenfilename()
         print(name)
+
+    file_menu = tkinter.Menu(menubar)
+    menubar.add_cascade(label="File", menu=file_menu)
+    file_menu.add_command(label="Open...", command=OpenFile)
+    file_menu.add_separator()
+
+    window_menu = tkinter.Menu(menubar, name='window')
+    menubar.add_cascade(label='Window', menu=window_menu)
 
     def About():
         print("This is a simple example of a menu")
 
-    file_menu = tkinter.Menu(menu)
-    menu.add_cascade(label="File", menu=file_menu)
-    file_menu.add_command(label="New", command=NewFile)
-    file_menu.add_command(label="Open...", command=OpenFile)
-    file_menu.add_separator()
-    file_menu.add_command(label="Exit", command=window.quit)
-    help_menu = tkinter.Menu(menu)
-    menu.add_cascade(label="Help", menu=help_menu)
-    help_menu.add_command(label="About...", command=About)
+    help_menu = tkinter.Menu(menubar, name='help')
+    menubar.add_cascade(label='Help', menu=help_menu)
+    window.createcommand('tk::mac::ShowHelp', About)
+
+    window['menu'] = menubar
+    window.config(menu=menubar)
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((hostname, port))
         proto_ver = ascii_str.read_ver(sock)
         print('protocol version: %s' % proto_ver)
-
-        window.title("Mado: {}:{}".format(hostname, port))
 
         sec_type = SecTypes.INVALID
         if proto_ver in (RFB_VERSION_3_8, RFB_VERSION_3_7):
@@ -166,7 +195,8 @@ def main():
                 """Print the character associated to the key pressed"""
                 print(event)
 
-            window.maxsize(server_init_msg.fb_width, server_init_msg.fb_height)
+            #resize(window, server_init_msg.fb_width, server_init_msg.fb_height)
+            window.title(server_init_msg.name)
 
             # Bind keypress event to handle_keypress()
             #window.bind('<Key>', handle_keypress)

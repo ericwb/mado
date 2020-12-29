@@ -14,7 +14,7 @@ def write_ver(socket, data):
 
 def read(socket):
     length = unsigned32.read(socket)
-    return str(socket.recv(length), encoding='ascii')
+    return socket.recv(length).decode('ascii')
 
 
 def write(socket, data):
