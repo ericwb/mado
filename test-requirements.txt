@@ -1,0 +1,4 @@
+stestr
+testtools
+pylint
+flake8

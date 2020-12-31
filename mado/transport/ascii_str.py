@@ -1,7 +1,7 @@
 # Copyright © 2020 Eric Brown
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
-import unsigned32
+from mado.transport import unsigned32
 
 
 def read_ver(socket):

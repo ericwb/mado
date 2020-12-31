@@ -1,8 +1,8 @@
 # Copyright © 2020 Eric Brown
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
-import unsigned8
-import unsigned16
+from mado.transport import unsigned8
+from mado.transport import unsigned16
 
 
 class PixelFormat():
@@ -28,6 +28,7 @@ class PixelFormat():
         self.padding[2] = unsigned8.read(socket)
         # or     CARD8 pad1;
         #        CARD16 pad2;
+
     def __repr__(self):
         return 'PixelFormat: %s' % vars(self)
 
