@@ -26,6 +26,7 @@ class Client(threading.Thread):
 
     def __init__(self):
         threading.Thread.__init__(self)
+        self.sock = None
         self.setDaemon(True)
         self.active = False
 
@@ -66,7 +67,11 @@ class Client(threading.Thread):
         :raises ConnectionRefusedError: when a socket connection is refused
         :raises TimeoutError: when a socket connection times out
         """
+
+        # Create socket connection
         self.sock = socket.create_connection((hostname, port), timeout)
+
+        # Read server's version string
         proto_ver = ascii_str.read_ver(self.sock)
         print('protocol version: %s' % proto_ver)
 
@@ -115,8 +120,8 @@ class Client(threading.Thread):
             client_init_msg.write(self.sock)
 
             # Read server initialization message
-            server_init_msg = server_init.ServerInitMsg(self.sock)
-            print(server_init_msg)
+            self.server_init_msg = server_init.ServerInitMsg(self.sock)
+            print(self.server_init_msg)
 
             # transport = Transport(self.sock)
             # transport.start_thread()
@@ -127,4 +132,5 @@ class Client(threading.Thread):
                 print('Authentication failed')
 
     def close(self):
-        self.sock.close()
+        if self.sock:
+            self.sock.close()

@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 import tkinter
+from tkinter import messagebox
 
 from mado.transport import client
 
@@ -30,18 +31,18 @@ def resize(window, width, height):
     window.maxsize(width, height)
 
 
-def OpenFile():
+def open_file():
     print('open file')
     # host_port = parsed.address[0].split(':')
     # hostname = host_port[0]
     # port = int(host_port[1]) if len(host_port) > 1 else DEFAULT_PORT
 
 
-def About():
+def about():
     print("This is a simple example of a menu")
 
 
-def showMyPreferencesDialog():
+def show_preferences():
     pass
 
 
@@ -58,7 +59,7 @@ def handle_mousemove(event):
 # Add menubar and menu items
 def add_menu_bar(window):
     window.option_add('*tearOff', False)
-    window.createcommand('tk::mac::ShowPreferences', showMyPreferencesDialog)
+    window.createcommand('tk::mac::ShowPreferences', show_preferences)
 
     menubar = tkinter.Menu(window)
     app_menu = tkinter.Menu(menubar, name='apple')
@@ -68,7 +69,7 @@ def add_menu_bar(window):
 
     file_menu = tkinter.Menu(menubar)
     menubar.add_cascade(label="File", menu=file_menu)
-    file_menu.add_command(label="Open...", command=OpenFile)
+    file_menu.add_command(label="Open...", command=open_file)
     file_menu.add_separator()
 
     window_menu = tkinter.Menu(menubar, name='window')
@@ -76,7 +77,7 @@ def add_menu_bar(window):
 
     help_menu = tkinter.Menu(menubar, name='help')
     menubar.add_cascade(label='Help', menu=help_menu)
-    window.createcommand('tk::mac::ShowHelp', About)
+    window.createcommand('tk::mac::ShowHelp', about)
 
     window['menu'] = menubar
     window.config(menu=menubar)
@@ -93,16 +94,17 @@ def main():
     add_menu_bar(window)
 
     # Establish a connection
-    rdp_client = client.Client()
-    rdp_client.connect('10.33.110.193', 5901)
+    rdp = client.Client()
+    try:
+        rdp.connect('10.33.110.193', 5905)
+        resize(window, rdp.server_init_msg.fb_width, rdp.server_init_msg.fb_height)
+        window.title(rdp.server_init_msg.name)
 
-    # resize(window, server_init_msg.fb_width, server_init_msg.fb_height)
-    # window.title(server_init_msg.name)
-
-    # Bind keypress event to handle_keypress()
-    # window.bind('<Key>', handle_keypress)
-    # window.bind('<Motion>', handle_mousemove)
-
-    # transport = Transport(sock)
-    # transport.start_thread()
-    window.mainloop()
+        # Bind key and mouse events to window
+        window.bind('<Key>', handle_keypress)
+        window.bind('<Motion>', handle_mousemove)
+        window.mainloop()
+    except OSError as error:
+        messagebox.showerror()
+        # messagebox.showinfo(title='Error', message=error.strerror)
+        rdp.close()
