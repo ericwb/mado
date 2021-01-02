@@ -11,5 +11,5 @@ class ClientInitMsg():
     def __init__(self):
         self.shared = self.EXCLUSIVE
 
-    def write(self, socket):
-        unsigned8.write(socket, self.shared)
+    def write(self, writer):
+        unsigned8.write(writer, self.shared)

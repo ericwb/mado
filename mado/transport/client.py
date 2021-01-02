@@ -70,21 +70,23 @@ class Client(threading.Thread):
 
         # Create socket connection
         self.sock = socket.create_connection((hostname, port), timeout)
+        self.reader = self.sock.makefile(mode='rb')
+        self.writer = self.sock.makefile(mode='wb')
 
         # Read server's version string
-        proto_ver = ascii_str.read_ver(self.sock)
-        print('protocol version: %s' % proto_ver)
+        proto_ver = ascii_str.read_ver(self.reader)
+        print('protocol version: {}'.format(proto_ver))
 
         sec_type = sec_types.SecTypes.INVALID
         if proto_ver in (RFB_VERSION_3_8, RFB_VERSION_3_7):
-            ascii_str.write_ver(self.sock, proto_ver)
+            ascii_str.write_ver(self.writer, proto_ver)
 
-            num_sec_types = unsigned8.read(self.sock)
+            num_sec_types = unsigned8.read(self.reader)
             sectypes = [None] * num_sec_types
             print('number of security types: %d' % num_sec_types)
 
             for i in range(0, num_sec_types):
-                sectypes[i] = sec_types.SecTypes(unsigned8.read(self.sock))
+                sectypes[i] = sec_types.SecTypes(unsigned8.read(self.reader))
                 print('sectypes[i]: %s' % sectypes[i])
 
             for i in range(0, num_sec_types):
@@ -95,9 +97,9 @@ class Client(threading.Thread):
                 if sectypes[i] == sec_types.SecTypes.VNC_AUTH:
                     sec_type = sec_types.SecTypes.VNC_AUTH
                     break
-            unsigned8.write(self.sock, sec_type.value)
+            unsigned8.write(self.writer, sec_type.value)
         elif proto_ver == RFB_VERSION_3_3:
-            ascii_str.write_ver(self.sock, proto_ver)
+            ascii_str.write_ver(self.writer, proto_ver)
         else:
             print('error')
 
@@ -105,29 +107,29 @@ class Client(threading.Thread):
         if sectypes == sec_types.SecTypes.VNC_AUTH:
             challenge = [None] * 16
             for i in range(0, 16):
-                challenge[i] = unsigned8.read(self.sock)
+                challenge[i] = unsigned8.read(self.reader)
             print(challenge)
 
         # Read security result
         secresult = sec_result.SecResult.OK
         if proto_ver == RFB_VERSION_3_8:
-            secresult = sec_result.SecResult(unsigned32.read(self.sock))
+            secresult = sec_result.SecResult(unsigned32.read(self.reader))
             print('secresult: %s' % secresult)
 
         if secresult == sec_result.SecResult.OK:
             # Write client initialization message
             client_init_msg = client_init.ClientInitMsg()
-            client_init_msg.write(self.sock)
+            client_init_msg.write(self.writer)
 
             # Read server initialization message
-            self.server_init_msg = server_init.ServerInitMsg(self.sock)
+            self.server_init_msg = server_init.ServerInitMsg(self.reader)
             print(self.server_init_msg)
 
             # transport = Transport(self.sock)
             # transport.start_thread()
         else:
             if proto_ver == RFB_VERSION_3_8:
-                print('Authentication failed: %s' % ascii_str.read(self.sock))
+                print('Authentication failed: %s' % ascii_str.read(self.reader))
             else:
                 print('Authentication failed')
 

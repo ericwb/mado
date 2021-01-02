@@ -6,14 +6,14 @@ from mado.transport import unsigned16
 
 class Rectangle():
 
-    def __init__(self, socket):
-        self.read(socket)
+    def __init__(self, reader):
+        self.read(reader)
 
-    def read(self, socket):
-        self.x = unsigned16.read(socket)
-        self.y = unsigned16.read(socket)
-        self.width = unsigned16.read(socket)
-        self.height = unsigned16.read(socket)
+    def read(self, reader):
+        self.x = unsigned16.read(reader)
+        self.y = unsigned16.read(reader)
+        self.width = unsigned16.read(reader)
+        self.height = unsigned16.read(reader)
 
     def __repr__(self):
         return 'Rectangle: %s' % vars(self)

@@ -18,14 +18,8 @@ def resize(window, width, height):
     titlebar_height = window.winfo_rooty() - window.winfo_y()
     win_height = height + titlebar_height + frm_width
 
-    print(window.winfo_screenwidth())
-    print(window.winfo_screenheight())
-
     x = window.winfo_screenwidth() // 2 - win_width // 2
     y = window.winfo_screenheight() // 2 - win_height // 2
-
-    print(x)
-    print(y)
 
     window.geometry('{}x{}+{}+{}'.format(width, height, x, y))
     window.maxsize(width, height)
@@ -96,7 +90,7 @@ def main():
     # Establish a connection
     rdp = client.Client()
     try:
-        rdp.connect('10.33.110.193', 5905)
+        rdp.connect('10.33.110.193', 5901)
         resize(window, rdp.server_init_msg.fb_width, rdp.server_init_msg.fb_height)
         window.title(rdp.server_init_msg.name)
 

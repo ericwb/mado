@@ -8,14 +8,14 @@ from mado.transport import unsigned16
 
 class ServerInitMsg():
 
-    def __init__(self, socket):
-        self.read(socket)
+    def __init__(self, reader):
+        self.read(reader)
 
-    def read(self, socket):
-        self.fb_width = unsigned16.read(socket)
-        self.fb_height = unsigned16.read(socket)
-        self.pix_format = pixel_format.PixelFormat(socket)
-        self.name = ascii_str.read(socket)
+    def read(self, reader):
+        self.fb_width = unsigned16.read(reader)
+        self.fb_height = unsigned16.read(reader)
+        self.pix_format = pixel_format.PixelFormat(reader)
+        self.name = ascii_str.read(reader)
 
     def __repr__(self):
         return 'ServerInitMsg: %s' % vars(self)
