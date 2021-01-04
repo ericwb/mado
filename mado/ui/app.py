@@ -42,12 +42,14 @@ def show_preferences():
 
 def handle_keypress(event):
     """Print the character associated to the key pressed"""
-    print(event)
+    #print(event)
+    pass
 
 
 def handle_mousemove(event):
     """Print the character associated to the key pressed"""
-    print(event)
+    #print(event)
+    pass
 
 
 # Add menubar and menu items
@@ -90,7 +92,7 @@ def main():
     # Establish a connection
     rdp = client.Client()
     try:
-        rdp.connect('10.33.110.193', 5901)
+        rdp.connect('10.33.110.193')
         resize(window, rdp.server_init_msg.fb_width, rdp.server_init_msg.fb_height)
         window.title(rdp.server_init_msg.name)
 

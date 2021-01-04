@@ -6,13 +6,17 @@ import threading
 
 from mado.transport import ascii_str
 from mado.transport import client_init
+from mado.transport import encodings
+from mado.transport import fb_update_req
 from mado.transport import msg_types
+from mado.transport import rectangle
 from mado.transport import sec_result
 from mado.transport import sec_types
 from mado.transport import server_init
+from mado.transport import signed32
 from mado.transport import unsigned8
+from mado.transport import unsigned16
 from mado.transport import unsigned32
-
 
 # Protocol versions supported
 RFB_VERSION_3_8 = 'RFB 003.008\n'
@@ -27,6 +31,8 @@ class Client(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.sock = None
+        self.reader = None
+        self.writer = None
         self.setDaemon(True)
         self.active = False
 
@@ -40,17 +46,43 @@ class Client(threading.Thread):
 
     def run(self):
         while self.active:
-            msg_type = msg_types.MessageTypes(unsigned8.read(self.sock))
+            msg_type = msg_types.MessageTypes(unsigned8.read(self.reader))
             print(msg_type)
 
             if msg_type == msg_types.MessageTypes.FRAMEBUFFER_UPDATE:
-                pass
+                self.handle_fb_update()
             elif msg_type == msg_types.MessageTypes.SET_COLOUR_MAP_ENTRIES:
-                pass
+                self.handle_color_map()
             elif msg_type == msg_types.MessageTypes.BELL:
-                pass
+                self.handle_bell()
             elif msg_type == msg_types.MessageTypes.SERVER_CUT_TEXT:
-                pass
+                self.handle_cut_text()
+
+    def handle_fb_update(self):
+        padding = unsigned8.read(self.reader)
+        for _ in range(unsigned16.read(self.reader)):
+            rect = rectangle.Rectangle(self.reader)
+            encoding = encodings.EncodingTypes(signed32.read(self.reader))
+            bytes_per_pixel = self.server_init_msg.pix_format.bits_per_pixel // 8
+            data_size = rect.width * rect.height * bytes_per_pixel
+            data = self.reader.read(data_size)
+            #callback.fb_update(rect, encoding, data)
+
+            print(rect)
+            print(encoding)
+            #from PIL import Image
+            #from PIL import ImageShow
+            #image = Image.frombytes(mode='RGBA', size=(rects[i].width, rects[i].height), data=data, decoder_name='raw')
+            #ImageShow.show(image, title=None)
+
+    def handle_color_map(self):
+        pass
+
+    def handle_bell(self):
+        pass
+
+    def handle_cut_text(self):
+        pass
 
     def connect(self, hostname, port=RDP_PORT, username=None, password=None,
                 timeout=None):
@@ -85,11 +117,11 @@ class Client(threading.Thread):
             sectypes = [None] * num_sec_types
             print('number of security types: %d' % num_sec_types)
 
-            for i in range(0, num_sec_types):
+            for i in range(num_sec_types):
                 sectypes[i] = sec_types.SecTypes(unsigned8.read(self.reader))
                 print('sectypes[i]: %s' % sectypes[i])
 
-            for i in range(0, num_sec_types):
+            for i in range(num_sec_types):
                 # TODO: decide security type
                 if sectypes[i] == sec_types.SecTypes.NONE:
                     sec_type = sec_types.SecTypes.NONE
@@ -106,7 +138,7 @@ class Client(threading.Thread):
         print(sectypes)
         if sectypes == sec_types.SecTypes.VNC_AUTH:
             challenge = [None] * 16
-            for i in range(0, 16):
+            for i in range(16):
                 challenge[i] = unsigned8.read(self.reader)
             print(challenge)
 
@@ -125,8 +157,12 @@ class Client(threading.Thread):
             self.server_init_msg = server_init.ServerInitMsg(self.reader)
             print(self.server_init_msg)
 
-            # transport = Transport(self.sock)
-            # transport.start_thread()
+            # Start the handler thread
+            self.start_thread()
+
+            # Request first update
+            fb_upd_req = fb_update_req.FramebufferUpdateRequestMsg()
+            fb_upd_req.write(self.writer, 0, 0, self.server_init_msg.fb_width, self.server_init_msg.fb_height, False)
         else:
             if proto_ver == RFB_VERSION_3_8:
                 print('Authentication failed: %s' % ascii_str.read(self.reader))

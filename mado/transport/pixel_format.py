@@ -22,12 +22,9 @@ class PixelFormat():
         self.green_shift = unsigned8.read(reader)
         self.blue_shift = unsigned8.read(reader)
         self.padding = [None] * 3
-
         self.padding[0] = unsigned8.read(reader)
         self.padding[1] = unsigned8.read(reader)
         self.padding[2] = unsigned8.read(reader)
-        # or     CARD8 pad1;
-        #        CARD16 pad2;
 
     def __repr__(self):
         return 'PixelFormat: %s' % vars(self)
