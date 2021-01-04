@@ -8,6 +8,7 @@ from mado.transport import ascii_str
 from mado.transport import client_init
 from mado.transport import encodings
 from mado.transport import fb_update_req
+from mado.transport import key_event
 from mado.transport import msg_types
 from mado.transport import rectangle
 from mado.transport import sec_result
@@ -28,8 +29,9 @@ RDP_PORT = 5900
 
 class Client(threading.Thread):
 
-    def __init__(self):
+    def __init__(self, callback):
         threading.Thread.__init__(self)
+        self.callback = callback
         self.sock = None
         self.reader = None
         self.writer = None
@@ -47,11 +49,18 @@ class Client(threading.Thread):
     def run(self):
         while self.active:
             msg_type = msg_types.MessageTypes(unsigned8.read(self.reader))
-            print(msg_type)
 
             if msg_type == msg_types.MessageTypes.FRAMEBUFFER_UPDATE:
                 self.handle_fb_update()
-            elif msg_type == msg_types.MessageTypes.SET_COLOUR_MAP_ENTRIES:
+                fb_update = fb_update_req.FramebufferUpdateRequestMsg()
+                fb_update.write(
+                    self.writer,
+                    0,
+                    0,
+                    self.server_init_msg.fb_width,
+                    self.server_init_msg.fb_height
+                )
+            elif msg_type == msg_types.MessageTypes.SET_COLOR_MAP_ENTRIES:
                 self.handle_color_map()
             elif msg_type == msg_types.MessageTypes.BELL:
                 self.handle_bell()
@@ -66,14 +75,7 @@ class Client(threading.Thread):
             bytes_per_pixel = self.server_init_msg.pix_format.bits_per_pixel // 8
             data_size = rect.width * rect.height * bytes_per_pixel
             data = self.reader.read(data_size)
-            #callback.fb_update(rect, encoding, data)
-
-            print(rect)
-            print(encoding)
-            #from PIL import Image
-            #from PIL import ImageShow
-            #image = Image.frombytes(mode='RGBA', size=(rects[i].width, rects[i].height), data=data, decoder_name='raw')
-            #ImageShow.show(image, title=None)
+            self.callback.fb_update(rect, encoding, data)
 
     def handle_color_map(self):
         pass
@@ -168,6 +170,14 @@ class Client(threading.Thread):
                 print('Authentication failed: %s' % ascii_str.read(self.reader))
             else:
                 print('Authentication failed')
+
+    def key_down(self, key):
+        kevent = key_event.KeyEvent()
+        kevent.write(self.writer, down_flag=True, key=key)
+
+    def key_up(self, key):
+        kevent = key_event.KeyEvent()
+        kevent.write(self.writer, down_flag=False, key=key)
 
     def close(self):
         if self.sock:

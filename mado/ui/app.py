@@ -4,6 +4,10 @@
 import tkinter
 from tkinter import messagebox
 
+from PIL import Image
+from PIL import ImageTk
+
+from mado.transport import callback
 from mado.transport import client
 
 
@@ -11,96 +15,117 @@ DEFAULT_WIDTH = 640
 DEFAULT_HEIGHT = 480
 
 
-def resize(window, width, height):
-    frm_width = window.winfo_rootx() - window.winfo_x()
-    win_width = width + 2 * frm_width
+class App(callback.ClientCallback):
 
-    titlebar_height = window.winfo_rooty() - window.winfo_y()
-    win_height = height + titlebar_height + frm_width
+    def __init__(self):
+        # Create the main window
+        self.window = tkinter.Tk()
+        self.window.title("Mado")
+        self.window.minsize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+        self.resize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
 
-    x = window.winfo_screenwidth() // 2 - win_width // 2
-    y = window.winfo_screenheight() // 2 - win_height // 2
+        # Add the menu bar
+        self.add_menu_bar()
 
-    window.geometry('{}x{}+{}+{}'.format(width, height, x, y))
-    window.maxsize(width, height)
+        # Establish a connection
+        self.rdp = client.Client(self)
+        try:
+            self.rdp.connect('10.33.110.193')
+            self.resize(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height)
+            self.canvas = tkinter.Canvas(self.window, width=self.rdp.server_init_msg.fb_width, height=self.rdp.server_init_msg.fb_height)
+            self.main_img = Image.new(mode='RGBA', size=(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height))
+            self.canvas.pack(expand=True, fill=tkinter.BOTH)
+            self.window.title(self.rdp.server_init_msg.name)
 
+            # Bind key and mouse events to window
+            self.window.bind('<KeyPress>', self.key_down)
+            self.window.bind('<KeyRelease>', self.key_up)
+            self.window.bind('<Motion>', self.handle_mousemove)
+            self.window.mainloop()
+        except OSError as error:
+            messagebox.showerror()
+            # messagebox.showinfo(title='Error', message=error.strerror)
+            self.rdp.close()
 
-def open_file():
-    print('open file')
-    # host_port = parsed.address[0].split(':')
-    # hostname = host_port[0]
-    # port = int(host_port[1]) if len(host_port) > 1 else DEFAULT_PORT
+    # Add menubar and menu items
+    def add_menu_bar(self):
+        self.window.option_add('*tearOff', False)
+        self.window.createcommand('tk::mac::ShowPreferences', self.show_preferences)
 
+        menubar = tkinter.Menu(self.window)
+        app_menu = tkinter.Menu(menubar, name='apple')
+        menubar.add_cascade(menu=app_menu)
+        app_menu.add_command(label='About Mado')
+        app_menu.add_separator()
 
-def about():
-    print("This is a simple example of a menu")
+        file_menu = tkinter.Menu(menubar)
+        menubar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="Open...", command=self.open_file)
+        file_menu.add_separator()
 
+        window_menu = tkinter.Menu(menubar, name='window')
+        menubar.add_cascade(label='Window', menu=window_menu)
 
-def show_preferences():
-    pass
+        help_menu = tkinter.Menu(menubar, name='help')
+        menubar.add_cascade(label='Help', menu=help_menu)
+        self.window.createcommand('tk::mac::ShowHelp', self.about)
 
+        self.window['menu'] = menubar
+        self.window.config(menu=menubar)
 
-def handle_keypress(event):
-    """Print the character associated to the key pressed"""
-    #print(event)
-    pass
+    def open_file(self):
+        print('open file')
+        # host_port = parsed.address[0].split(':')
+        # hostname = host_port[0]
+        # port = int(host_port[1]) if len(host_port) > 1 else DEFAULT_PORT
 
+    def about(self):
+        print("This is a simple example of a menu")
 
-def handle_mousemove(event):
-    """Print the character associated to the key pressed"""
-    #print(event)
-    pass
+    def show_preferences(self):
+        pass
 
+    def resize(self, width, height):
+        frm_width = self.window.winfo_rootx() - self.window.winfo_x()
+        win_width = width + 2 * frm_width
 
-# Add menubar and menu items
-def add_menu_bar(window):
-    window.option_add('*tearOff', False)
-    window.createcommand('tk::mac::ShowPreferences', show_preferences)
+        titlebar_height = self.window.winfo_rooty() - self.window.winfo_y()
+        win_height = height + titlebar_height + frm_width
 
-    menubar = tkinter.Menu(window)
-    app_menu = tkinter.Menu(menubar, name='apple')
-    menubar.add_cascade(menu=app_menu)
-    app_menu.add_command(label='About Mado')
-    app_menu.add_separator()
+        x = self.window.winfo_screenwidth() // 2 - win_width // 2
+        y = self.window.winfo_screenheight() // 2 - win_height // 2
 
-    file_menu = tkinter.Menu(menubar)
-    menubar.add_cascade(label="File", menu=file_menu)
-    file_menu.add_command(label="Open...", command=open_file)
-    file_menu.add_separator()
+        self.window.geometry('{}x{}+{}+{}'.format(width, height, x, y))
+        self.window.maxsize(width, height)
 
-    window_menu = tkinter.Menu(menubar, name='window')
-    menubar.add_cascade(label='Window', menu=window_menu)
+    def key_down(self, event):
+        """Print the character associated to the key pressed"""
+        print(event)
+        self.rdp.key_down(event.keysym)
 
-    help_menu = tkinter.Menu(menubar, name='help')
-    menubar.add_cascade(label='Help', menu=help_menu)
-    window.createcommand('tk::mac::ShowHelp', about)
+    def key_up(self, event):
+        """Print the character associated to the key pressed"""
+        print(event)
+        self.rdp.key_up(event.keysym)
 
-    window['menu'] = menubar
-    window.config(menu=menubar)
+    def handle_mousemove(self, event):
+        """Print the character associated to the key pressed"""
+        #print(event)
+        pass
+
+    def fb_update(self, rect, encoding, data):
+        # this might be faster if data is a series of ints
+        #self.main_img.paste(data, box=(rect.x, rect.y, rect.width, rect.height))
+        image = Image.frombytes(
+            mode='RGBA',
+            size=(rect.width, rect.height),
+            data=data,
+            decoder_name=encoding.name.lower()
+        )
+        self.main_img.paste(image, (rect.x, rect.y))
+        self.tkimage = ImageTk.PhotoImage(image=self.main_img)
+        self.canvas.create_image(0, 0, anchor=tkinter.NW, image=self.tkimage)
 
 
 def main():
-    # Create the main window
-    window = tkinter.Tk()
-    window.title("Mado")
-    window.minsize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
-    resize(window, DEFAULT_WIDTH, DEFAULT_HEIGHT)
-
-    # Add the menu bar
-    add_menu_bar(window)
-
-    # Establish a connection
-    rdp = client.Client()
-    try:
-        rdp.connect('10.33.110.193')
-        resize(window, rdp.server_init_msg.fb_width, rdp.server_init_msg.fb_height)
-        window.title(rdp.server_init_msg.name)
-
-        # Bind key and mouse events to window
-        window.bind('<Key>', handle_keypress)
-        window.bind('<Motion>', handle_mousemove)
-        window.mainloop()
-    except OSError as error:
-        messagebox.showerror()
-        # messagebox.showinfo(title='Error', message=error.strerror)
-        rdp.close()
+    app = App()

@@ -6,7 +6,7 @@ from enum import Enum
 
 class MessageTypes(Enum):
     FRAMEBUFFER_UPDATE = 0
-    SET_COLOUR_MAP_ENTRIES = 1
+    SET_COLOR_MAP_ENTRIES = 1
     BELL = 2
     SERVER_CUT_TEXT = 3
 
