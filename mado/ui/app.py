@@ -23,6 +23,7 @@ class App(callback.ClientCallback):
         self.window = tkinter.Tk()
         self.window.title('Mado')
         self.window.minsize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+        self.canvas = tkinter.Canvas(self.window, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, highlightthickness=0)
         self.resize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
 
         # Add the menu bar
@@ -72,7 +73,6 @@ class App(callback.ClientCallback):
                 self.rdp.connect(hostname, port)
 
                 self.resize(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height)
-                self.canvas = tkinter.Canvas(self.window, width=self.rdp.server_init_msg.fb_width, height=self.rdp.server_init_msg.fb_height)
                 self.main_img = Image.new(mode='RGBA', size=(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height))
                 self.canvas.pack(expand=True, fill=tkinter.BOTH)
                 self.window.title(self.rdp.server_init_msg.name)
@@ -126,6 +126,8 @@ class App(callback.ClientCallback):
 
         self.window.geometry('{}x{}+{}+{}'.format(width, height, x, y))
         self.window.maxsize(width, height)
+        self.canvas.config(width=width, height=height)
+
 
     def _on_key_down(self, event):
         """Print the character associated to the key pressed"""
