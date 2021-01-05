@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import tkinter
 from tkinter import messagebox
+from tkinter import simpledialog
 
 from PIL import Image
 from PIL import ImageTk
@@ -20,37 +21,20 @@ class App(callback.ClientCallback):
     def __init__(self):
         # Create the main window
         self.window = tkinter.Tk()
-        self.window.title("Mado")
+        self.window.title('Mado')
         self.window.minsize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
         self.resize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
 
         # Add the menu bar
         self.add_menu_bar()
 
-        # Establish a connection
-        self.rdp = client.Client(self)
-        try:
-            self.rdp.connect('10.33.110.193')
-            self.resize(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height)
-            self.canvas = tkinter.Canvas(self.window, width=self.rdp.server_init_msg.fb_width, height=self.rdp.server_init_msg.fb_height)
-            self.main_img = Image.new(mode='RGBA', size=(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height))
-            self.canvas.pack(expand=True, fill=tkinter.BOTH)
-            self.window.title(self.rdp.server_init_msg.name)
-
-            # Bind key and mouse events to window
-            self.window.bind('<KeyPress>', self.key_down)
-            self.window.bind('<KeyRelease>', self.key_up)
-            self.window.bind('<Motion>', self.handle_mousemove)
-            self.window.mainloop()
-        except OSError as error:
-            messagebox.showerror()
-            # messagebox.showinfo(title='Error', message=error.strerror)
-            self.rdp.close()
+        # Start the main event loop
+        self.window.mainloop()
 
     # Add menubar and menu items
     def add_menu_bar(self):
         self.window.option_add('*tearOff', False)
-        self.window.createcommand('tk::mac::ShowPreferences', self.show_preferences)
+        self.window.createcommand('tk::mac::ShowPreferences', self._show_preferences)
 
         menubar = tkinter.Menu(self.window)
         app_menu = tkinter.Menu(menubar, name='apple')
@@ -58,32 +42,77 @@ class App(callback.ClientCallback):
         app_menu.add_command(label='About Mado')
         app_menu.add_separator()
 
-        file_menu = tkinter.Menu(menubar)
-        menubar.add_cascade(label="File", menu=file_menu)
-        file_menu.add_command(label="Open...", command=self.open_file)
-        file_menu.add_separator()
+        self.file_menu = tkinter.Menu(menubar)
+        menubar.add_cascade(label="File", menu=self.file_menu)
+        self.file_menu.add_command(label="Open...", command=self._open_connection)
+        self.file_menu.add_separator()
+        self.file_menu.add_command(label="Close", command=self._close_connection, accelerator='Command+W')
+        self.file_menu.entryconfigure('Close', state=tkinter.DISABLED)
 
         window_menu = tkinter.Menu(menubar, name='window')
         menubar.add_cascade(label='Window', menu=window_menu)
 
         help_menu = tkinter.Menu(menubar, name='help')
         menubar.add_cascade(label='Help', menu=help_menu)
-        self.window.createcommand('tk::mac::ShowHelp', self.about)
+        self.window.createcommand('tk::mac::ShowHelp', self._about)
 
         self.window['menu'] = menubar
         self.window.config(menu=menubar)
 
-    def open_file(self):
-        print('open file')
-        # host_port = parsed.address[0].split(':')
-        # hostname = host_port[0]
-        # port = int(host_port[1]) if len(host_port) > 1 else DEFAULT_PORT
+    def _open_connection(self):
+        address = simpledialog.askstring('Open', 'Hostname:')
+        if address:
+            host_port = address.split(':')
+            hostname = host_port[0]
+            port = int(host_port[1]) if len(host_port) > 1 else client.RDP_PORT
 
-    def about(self):
-        print("This is a simple example of a menu")
+            self.rdp = client.Client(self)
+            try:
+                # Establish a connection
+                self.rdp.connect(hostname, port)
 
-    def show_preferences(self):
-        pass
+                self.resize(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height)
+                self.canvas = tkinter.Canvas(self.window, width=self.rdp.server_init_msg.fb_width, height=self.rdp.server_init_msg.fb_height)
+                self.main_img = Image.new(mode='RGBA', size=(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height))
+                self.canvas.pack(expand=True, fill=tkinter.BOTH)
+                self.window.title(self.rdp.server_init_msg.name)
+
+                # Bind key and mouse events to window
+                self.window.bind('<KeyPress>', self._on_key_down)
+                self.window.bind('<KeyRelease>', self._on_key_up)
+                self.window.bind('<Motion>', self._on_mouse_move)
+                self.window.bind('<Button>', self._on_mouse_button)
+
+                # Enable the Close menu item
+                self.file_menu.entryconfigure('Close', state=tkinter.NORMAL)
+            except OSError as error:
+                print(error)
+                messagebox.showerror(title='Error', message=error.strerror)
+                self.rdp.close()
+
+    def _close_connection(self):
+        # Disable close menu item
+        self.file_menu.entryconfigure('Close', state=tkinter.DISABLED)
+
+        # Unbind key and mouse events
+        self.window.unbind('<KeyPress>')
+        self.window.unbind('<KeyRelease>')
+        self.window.unbind('<Motion>')
+        self.window.unbind('<Button>')
+
+        # Close the client connection
+        self.rdp.close()
+
+        self.tkimage = None
+        self.window.title('Mado')
+        self.window.minsize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+        self.resize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+
+    def _about(self):
+        print("_about")
+
+    def _show_preferences(self):
+        print("_show_preferences")
 
     def resize(self, width, height):
         frm_width = self.window.winfo_rootx() - self.window.winfo_x()
@@ -98,26 +127,31 @@ class App(callback.ClientCallback):
         self.window.geometry('{}x{}+{}+{}'.format(width, height, x, y))
         self.window.maxsize(width, height)
 
-    def key_down(self, event):
+    def _on_key_down(self, event):
         """Print the character associated to the key pressed"""
         print(event)
         self.rdp.key_down(event.keysym)
 
-    def key_up(self, event):
+    def _on_key_up(self, event):
         """Print the character associated to the key pressed"""
         print(event)
         self.rdp.key_up(event.keysym)
 
-    def handle_mousemove(self, event):
+    def _on_mouse_move(self, event):
         """Print the character associated to the key pressed"""
-        #print(event)
-        pass
+        print(event)
+        if event.x >= 0 and event.y >= 0:
+            self.rdp.mouse_move(0, event.x, event.y)
+
+    def _on_mouse_button(self, event):
+        print(event)
 
     def fb_update(self, rect, encoding, data):
-        # this might be faster if data is a series of ints
+        # This might be faster if data is a series of ints, so the frombytes can
+        # be skipped
         #self.main_img.paste(data, box=(rect.x, rect.y, rect.width, rect.height))
         image = Image.frombytes(
-            mode='RGBA',
+            mode='RGBX',
             size=(rect.width, rect.height),
             data=data,
             decoder_name=encoding.name.lower()

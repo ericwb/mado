@@ -10,6 +10,7 @@ from mado.transport import encodings
 from mado.transport import fb_update_req
 from mado.transport import key_event
 from mado.transport import msg_types
+from mado.transport import pointer_event
 from mado.transport import rectangle
 from mado.transport import sec_result
 from mado.transport import sec_types
@@ -44,28 +45,30 @@ class Client(threading.Thread):
 
     def stop_thread(self):
         self.active = True
-        self.join()
 
     def run(self):
-        while self.active:
-            msg_type = msg_types.MessageTypes(unsigned8.read(self.reader))
+        try:
+            while self.active:
+                msg_type = msg_types.MessageTypes(unsigned8.read(self.reader))
 
-            if msg_type == msg_types.MessageTypes.FRAMEBUFFER_UPDATE:
-                self.handle_fb_update()
-                fb_update = fb_update_req.FramebufferUpdateRequestMsg()
-                fb_update.write(
-                    self.writer,
-                    0,
-                    0,
-                    self.server_init_msg.fb_width,
-                    self.server_init_msg.fb_height
-                )
-            elif msg_type == msg_types.MessageTypes.SET_COLOR_MAP_ENTRIES:
-                self.handle_color_map()
-            elif msg_type == msg_types.MessageTypes.BELL:
-                self.handle_bell()
-            elif msg_type == msg_types.MessageTypes.SERVER_CUT_TEXT:
-                self.handle_cut_text()
+                if msg_type == msg_types.MessageTypes.FRAMEBUFFER_UPDATE:
+                    self.handle_fb_update()
+                    fb_update = fb_update_req.FramebufferUpdateRequestMsg()
+                    fb_update.write(
+                        self.writer,
+                        0,
+                        0,
+                        self.server_init_msg.fb_width,
+                        self.server_init_msg.fb_height
+                    )
+                elif msg_type == msg_types.MessageTypes.SET_COLOR_MAP_ENTRIES:
+                    self.handle_color_map()
+                elif msg_type == msg_types.MessageTypes.BELL:
+                    self.handle_bell()
+                elif msg_type == msg_types.MessageTypes.SERVER_CUT_TEXT:
+                    self.handle_cut_text()
+        except OSError as error:
+            print(error)
 
     def handle_fb_update(self):
         padding = unsigned8.read(self.reader)
@@ -162,6 +165,13 @@ class Client(threading.Thread):
             # Start the handler thread
             self.start_thread()
 
+            # Send supported encodings
+            set_encodings = encodings.SetEncodings()
+            supported_encodings = [
+                encodings.EncodingTypes.RAW,
+            ]
+            set_encodings.write(self.writer, supported_encodings)
+
             # Request first update
             fb_upd_req = fb_update_req.FramebufferUpdateRequestMsg()
             fb_upd_req.write(self.writer, 0, 0, self.server_init_msg.fb_width, self.server_init_msg.fb_height, False)
@@ -179,6 +189,14 @@ class Client(threading.Thread):
         kevent = key_event.KeyEvent()
         kevent.write(self.writer, down_flag=False, key=key)
 
+    def mouse_move(self, button_mask, x, y):
+        pevent = pointer_event.PointerEvent()
+        pevent.write(self.writer, button_mask, x, y)
+
     def close(self):
+        self.stop_thread()
+        if self.sock:
+            self.sock.shutdown(socket.SHUT_RDWR)
+        #self.join()
         if self.sock:
             self.sock.close()

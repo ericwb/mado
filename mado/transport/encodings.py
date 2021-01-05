@@ -3,6 +3,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from enum import Enum
 
+from mado.transport import msg_types
+from mado.transport import signed32
+from mado.transport import unsigned8
+from mado.transport import unsigned16
+
 
 class EncodingTypes(Enum):
     RAW = 0
@@ -17,3 +22,16 @@ class EncodingTypes(Enum):
     # RealVNC = 1024 to 1099
     CURSOR = -239
     DESKTOP_SIZE = -223
+
+
+class SetEncodings():
+
+    def __init__(self):
+        self.msg_type = msg_types.MessageTypes.SET_ENCODINGS
+
+    def write(self, writer, supported_encodings):
+        unsigned8.write(writer, self.msg_type.value)
+        unsigned8.write(writer, 0)
+        unsigned16.write(writer, len(supported_encodings))
+        for encoding in supported_encodings:
+            signed32.write(writer, encoding.value)
