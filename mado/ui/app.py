@@ -47,7 +47,7 @@ class App(callback.ClientCallback):
         menubar.add_cascade(label="File", menu=self.file_menu)
         self.file_menu.add_command(label="Open...", command=self._open_connection)
         self.file_menu.add_separator()
-        self.file_menu.add_command(label="Close", command=self._close_connection, accelerator='Command+W')
+        self.file_menu.add_command(label="Close", command=self._close_connection)
         self.file_menu.entryconfigure('Close', state=tkinter.DISABLED)
 
         window_menu = tkinter.Menu(menubar, name='window')
@@ -87,7 +87,7 @@ class App(callback.ClientCallback):
                 self.file_menu.entryconfigure('Close', state=tkinter.NORMAL)
             except OSError as error:
                 print(error)
-                messagebox.showerror(title='Error', message=error.strerror)
+                messagebox.showwarning(title='Error', message=error.strerror)
                 self.rdp.close()
 
     def _close_connection(self):
