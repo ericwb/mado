@@ -22,6 +22,7 @@ setuptools.setup(
     python_requires='>=3.9',
     setup_requires=[
         'py2app',
-        'Pillow'
+        'Pillow',
+        'des'
     ],
 )

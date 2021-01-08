@@ -8,6 +8,7 @@ from tkinter import simpledialog
 from PIL import Image
 from PIL import ImageTk
 
+from mado.transport import auth_exception
 from mado.transport import callback
 from mado.transport import client
 
@@ -67,28 +68,42 @@ class App(callback.ClientCallback):
             hostname = host_port[0]
             port = int(host_port[1]) if len(host_port) > 1 else client.RDP_PORT
 
+            # Initialize client
             self.rdp = client.Client(self)
+
             try:
                 # Establish a connection
                 self.rdp.connect(hostname, port)
-
-                self.resize(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height)
-                self.main_img = Image.new(mode='RGBA', size=(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height))
-                self.canvas.pack(expand=True, fill=tkinter.BOTH)
-                self.window.title(self.rdp.server_init_msg.name)
-
-                # Bind key and mouse events to window
-                self.window.bind('<KeyPress>', self._on_key_down)
-                self.window.bind('<KeyRelease>', self._on_key_up)
-                self.window.bind('<Motion>', self._on_mouse_move)
-                self.window.bind('<Button>', self._on_mouse_button)
-
-                # Enable the Close menu item
-                self.file_menu.entryconfigure('Close', state=tkinter.NORMAL)
             except OSError as error:
                 print(error)
                 messagebox.showwarning(title='Error', message=error.strerror)
                 self.rdp.close()
+                return
+
+            authenticated = False
+            password = None
+            while authenticated == False:
+                try:
+                    self.rdp.authenticate(password)
+                    authenticated = True
+                except auth_exception.AuthException as auth_exc:
+                    print(auth_exc.secresult)
+                    print(auth_exc.reason)
+                    password = simpledialog.askstring('Authentication', 'Password:', show='*')
+
+            self.resize(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height)
+            self.main_img = Image.new(mode='RGBA', size=(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height))
+            self.canvas.pack(expand=True, fill=tkinter.BOTH)
+            self.window.title(self.rdp.server_init_msg.name)
+
+            # Bind key and mouse events to window
+            self.window.bind('<KeyPress>', self._on_key_down)
+            self.window.bind('<KeyRelease>', self._on_key_up)
+            self.window.bind('<Motion>', self._on_mouse_move)
+            self.window.bind('<Button>', self._on_mouse_button)
+
+            # Enable the Close menu item
+            self.file_menu.entryconfigure('Close', state=tkinter.NORMAL)
 
     def _close_connection(self):
         # Disable close menu item
@@ -128,7 +143,6 @@ class App(callback.ClientCallback):
         self.window.maxsize(width, height)
         self.canvas.config(width=width, height=height)
 
-
     def _on_key_down(self, event):
         """Print the character associated to the key pressed"""
         print(event)
@@ -147,6 +161,9 @@ class App(callback.ClientCallback):
 
     def _on_mouse_button(self, event):
         print(event)
+
+    def get_password(self):
+        return simpledialog.askstring('Authentication', 'Password:', show='*')
 
     def fb_update(self, rect, encoding, data):
         # This might be faster if data is a series of ints, so the frombytes can

@@ -4,7 +4,10 @@
 import socket
 import threading
 
+from des import DesKey
+
 from mado.transport import ascii_str
+from mado.transport import auth_exception
 from mado.transport import client_init
 from mado.transport import encodings
 from mado.transport import fb_update_req
@@ -89,16 +92,13 @@ class Client(threading.Thread):
     def handle_cut_text(self):
         pass
 
-    def connect(self, hostname, port=RDP_PORT, username=None, password=None,
-                timeout=None):
+    def connect(self, hostname, port=RDP_PORT, timeout=15):
         """
         Connect and authenticate to an RFB server.
 
         :param str hostname: the address to connect to
-        :param int port: the port used to connect with
-        :param str username: the username to authenticate with
-        :param str password: the password to authenticate with
-        :param int timeout: the timeout for the connection in seconds
+        :param int port: the port used to connect with (default=5900)
+        :param int timeout: the timeout to connect in seconds (default=15)
 
         :raises socket.gaierror: error occurred getting address
         :raises ConnectionRefusedError: when a socket connection is refused
@@ -111,75 +111,96 @@ class Client(threading.Thread):
         self.writer = self.sock.makefile(mode='wb')
 
         # Read server's version string
-        proto_ver = ascii_str.read_ver(self.reader)
-        print('protocol version: {}'.format(proto_ver))
+        self.proto_ver = ascii_str.read_ver(self.reader)
+        print('protocol version: {}'.format(self.proto_ver))
 
         sec_type = sec_types.SecTypes.INVALID
-        if proto_ver in (RFB_VERSION_3_8, RFB_VERSION_3_7):
-            ascii_str.write_ver(self.writer, proto_ver)
+        if self.proto_ver in (RFB_VERSION_3_8, RFB_VERSION_3_7):
+            ascii_str.write_ver(self.writer, self.proto_ver)
 
             num_sec_types = unsigned8.read(self.reader)
-            sectypes = [None] * num_sec_types
+            self.sectypes = [None] * num_sec_types
             print('number of security types: %d' % num_sec_types)
 
             for i in range(num_sec_types):
-                sectypes[i] = sec_types.SecTypes(unsigned8.read(self.reader))
-                print('sectypes[i]: %s' % sectypes[i])
+                self.sectypes[i] = sec_types.SecTypes(unsigned8.read(self.reader))
+                print('sectypes[i]: %s' % self.sectypes[i])
 
             for i in range(num_sec_types):
                 # TODO: decide security type
-                if sectypes[i] == sec_types.SecTypes.NONE:
+                if self.sectypes[i] == sec_types.SecTypes.NONE:
                     sec_type = sec_types.SecTypes.NONE
                     break
-                if sectypes[i] == sec_types.SecTypes.VNC_AUTH:
+                if self.sectypes[i] == sec_types.SecTypes.VNC_AUTH:
                     sec_type = sec_types.SecTypes.VNC_AUTH
                     break
             unsigned8.write(self.writer, sec_type.value)
-        elif proto_ver == RFB_VERSION_3_3:
-            ascii_str.write_ver(self.writer, proto_ver)
+        elif self.proto_ver == RFB_VERSION_3_3:
+            ascii_str.write_ver(self.writer, self.proto_ver)
+            self.sectypes[0] = unsigned32.read(self.reader)
         else:
-            print('error')
+            # TODO: error unsupported version
+            print('error: unsupported version')
+        print(self.sectypes)
 
-        print(sectypes)
-        if sectypes == sec_types.SecTypes.VNC_AUTH:
-            challenge = [None] * 16
-            for i in range(16):
-                challenge[i] = unsigned8.read(self.reader)
-            print(challenge)
+    def authenticate(self, password):
+        if sec_types.SecTypes.VNC_AUTH in self.sectypes:
+            password = '' if password == None else password
+            challenge = self.reader.read(16)
+
+            # Truncate passwords longer than 64 bits and pad short than 64 bits
+            password = '{:\0<8}'.format(password)[:8].encode()
+
+            # Note: The lowest bit of each byte is considered the first bit
+            # and the highest discarded as parity. This is the reverse order
+            # of most implementations of DES so the key may require adjustment
+            # to give the expected result.
+            passkey = []
+            for c in password:
+                passkey.append(int('{:08b}'.format(c)[::-1], 2))
+            key = DesKey(bytes(passkey))
+            result = key.encrypt(challenge)
+            self.writer.write(result)
+            self.writer.flush()
+        elif sec_types.SecTypes.NONE in self.sectypes:
+            secresult = sec_result.SecResult.OK
+        else:
+            # Unsupported security type
+            print('error: security type')
 
         # Read security result
-        secresult = sec_result.SecResult.OK
-        if proto_ver == RFB_VERSION_3_8:
-            secresult = sec_result.SecResult(unsigned32.read(self.reader))
-            print('secresult: %s' % secresult)
+        secresult = sec_result.SecResult(unsigned32.read(self.reader))
 
         if secresult == sec_result.SecResult.OK:
-            # Write client initialization message
-            client_init_msg = client_init.ClientInitMsg()
-            client_init_msg.write(self.writer)
-
-            # Read server initialization message
-            self.server_init_msg = server_init.ServerInitMsg(self.reader)
-            print(self.server_init_msg)
-
-            # Start the handler thread
-            self.start_thread()
-
-            # Send supported encodings
-            set_encodings = encodings.SetEncodings()
-            supported_encodings = [
-                encodings.EncodingTypes.RAW,
-            ]
-            set_encodings.write(self.writer, supported_encodings)
-
-            # Request first update
-            fb_upd_req = fb_update_req.FramebufferUpdateRequestMsg()
-            fb_upd_req.write(self.writer, 0, 0, self.server_init_msg.fb_width, self.server_init_msg.fb_height, False)
+            self._do_init()
         else:
-            if proto_ver == RFB_VERSION_3_8:
-                print('Authentication failed: %s' % ascii_str.read(self.reader))
-            else:
-                print('Authentication failed')
+            if self.proto_ver == RFB_VERSION_3_8:
+                reason = ascii_str.read(self.reader)
+                print('reason: %s' % reason)
+            raise auth_exception.AuthException(secresult, reason)
+
+    def _do_init(self):
+        # Write client initialization message
+        client_init_msg = client_init.ClientInitMsg()
+        client_init_msg.write(self.writer)
+
+        # Read server initialization message
+        self.server_init_msg = server_init.ServerInitMsg(self.reader)
+        print(self.server_init_msg)
+
+        # Start the handler thread
+        self.start_thread()
+
+        # Send supported encodings
+        set_encodings = encodings.SetEncodings()
+        supported_encodings = [
+            encodings.EncodingTypes.RAW,
+        ]
+        set_encodings.write(self.writer, supported_encodings)
+
+        # Request first update
+        fb_upd_req = fb_update_req.FramebufferUpdateRequestMsg()
+        fb_upd_req.write(self.writer, 0, 0, self.server_init_msg.fb_width, self.server_init_msg.fb_height, False)
 
     def key_down(self, key):
         kevent = key_event.KeyEvent()
@@ -197,6 +218,5 @@ class Client(threading.Thread):
         self.stop_thread()
         if self.sock:
             self.sock.shutdown(socket.SHUT_RDWR)
-        #self.join()
         if self.sock:
             self.sock.close()
