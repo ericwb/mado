@@ -11,6 +11,7 @@ from PIL import ImageTk
 from mado.transport import auth_exception
 from mado.transport import callback
 from mado.transport import client
+from mado.transport import sec_types
 
 
 DEFAULT_WIDTH = 640
@@ -73,37 +74,51 @@ class App(callback.ClientCallback):
 
             try:
                 # Establish a connection
-                self.rdp.connect(hostname, port)
+                sec_type = self.rdp.connect(hostname, port)
+                print('sec_type: {}'.format(sec_type))
+
+                authenticated = False
+                if sec_type == sec_types.SecTypes.VNC_AUTH:
+                    print('attempting vnc auth')
+                    while not authenticated:
+                        password = simpledialog.askstring('Authentication', 'Password:', show='*')
+                        try:
+                            self.rdp.vnc_auth(password)
+                            authenticated = True
+                        except auth_exception.AuthException as auth_exc:
+                            print('AuthException')
+                            print(auth_exc.secresult)
+                            print(auth_exc.reason)
+                elif sec_type == sec_types.SecTypes.NONE:
+                    print('attempting no auth')
+                    try:
+                        self.rdp.no_auth()
+                        authenticated = True
+                    except auth_exception.AuthException as auth_exc:
+                        print(auth_exc.secresult)
+                        print(auth_exc.reason)
+                else:
+                    print('Unknown security type: {}'.format(sec_type))
+
+                if authenticated:
+                    self.resize(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height)
+                    self.main_img = Image.new(mode='RGBA', size=(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height))
+                    self.canvas.pack(expand=True, fill=tkinter.BOTH)
+                    self.window.title(self.rdp.server_init_msg.name)
+
+                    # Bind key and mouse events to window
+                    self.window.bind('<KeyPress>', self._on_key_down)
+                    self.window.bind('<KeyRelease>', self._on_key_up)
+                    self.window.bind('<Motion>', self._on_mouse_move)
+                    self.window.bind('<Button>', self._on_mouse_button)
+
+                    # Enable the Close menu item
+                    self.file_menu.entryconfigure('Close', state=tkinter.NORMAL)
             except OSError as error:
                 print(error)
                 messagebox.showwarning(title='Error', message=error.strerror)
                 self.rdp.close()
                 return
-
-            authenticated = False
-            password = None
-            while authenticated == False:
-                try:
-                    self.rdp.authenticate(password)
-                    authenticated = True
-                except auth_exception.AuthException as auth_exc:
-                    print(auth_exc.secresult)
-                    print(auth_exc.reason)
-                    password = simpledialog.askstring('Authentication', 'Password:', show='*')
-
-            self.resize(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height)
-            self.main_img = Image.new(mode='RGBA', size=(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height))
-            self.canvas.pack(expand=True, fill=tkinter.BOTH)
-            self.window.title(self.rdp.server_init_msg.name)
-
-            # Bind key and mouse events to window
-            self.window.bind('<KeyPress>', self._on_key_down)
-            self.window.bind('<KeyRelease>', self._on_key_up)
-            self.window.bind('<Motion>', self._on_mouse_move)
-            self.window.bind('<Button>', self._on_mouse_button)
-
-            # Enable the Close menu item
-            self.file_menu.entryconfigure('Close', state=tkinter.NORMAL)
 
     def _close_connection(self):
         # Disable close menu item

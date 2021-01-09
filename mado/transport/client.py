@@ -119,54 +119,58 @@ class Client(threading.Thread):
             ascii_str.write_ver(self.writer, self.proto_ver)
 
             num_sec_types = unsigned8.read(self.reader)
-            self.sectypes = [None] * num_sec_types
+            sectypes = [None] * num_sec_types
             print('number of security types: %d' % num_sec_types)
 
             for i in range(num_sec_types):
-                self.sectypes[i] = sec_types.SecTypes(unsigned8.read(self.reader))
-                print('sectypes[i]: %s' % self.sectypes[i])
+                sectypes[i] = sec_types.SecTypes(unsigned8.read(self.reader))
+                print('sectypes[i]: %s' % sectypes[i])
 
             for i in range(num_sec_types):
-                # TODO: decide security type
-                if self.sectypes[i] == sec_types.SecTypes.NONE:
-                    sec_type = sec_types.SecTypes.NONE
-                    break
-                if self.sectypes[i] == sec_types.SecTypes.VNC_AUTH:
+                if sectypes[i] == sec_types.SecTypes.VNC_AUTH:
                     sec_type = sec_types.SecTypes.VNC_AUTH
+                    break
+                if sectypes[i] == sec_types.SecTypes.NONE:
+                    sec_type = sec_types.SecTypes.NONE
                     break
             unsigned8.write(self.writer, sec_type.value)
         elif self.proto_ver == RFB_VERSION_3_3:
             ascii_str.write_ver(self.writer, self.proto_ver)
-            self.sectypes[0] = unsigned32.read(self.reader)
+            sec_type = unsigned32.read(self.reader)
         else:
             # TODO: error unsupported version
-            print('error: unsupported version')
-        print(self.sectypes)
+            print('error: unsupported version: {}'.format(self.proto_ver))
+        return sec_type
 
-    def authenticate(self, password):
-        if sec_types.SecTypes.VNC_AUTH in self.sectypes:
-            password = '' if password == None else password
-            challenge = self.reader.read(16)
+    def no_auth(self):
+        # Read security result
+        secresult = sec_result.SecResult(unsigned32.read(self.reader))
 
-            # Truncate passwords longer than 64 bits and pad short than 64 bits
-            password = '{:\0<8}'.format(password)[:8].encode()
-
-            # Note: The lowest bit of each byte is considered the first bit
-            # and the highest discarded as parity. This is the reverse order
-            # of most implementations of DES so the key may require adjustment
-            # to give the expected result.
-            passkey = []
-            for c in password:
-                passkey.append(int('{:08b}'.format(c)[::-1], 2))
-            key = DesKey(bytes(passkey))
-            result = key.encrypt(challenge)
-            self.writer.write(result)
-            self.writer.flush()
-        elif sec_types.SecTypes.NONE in self.sectypes:
-            secresult = sec_result.SecResult.OK
+        if secresult == sec_result.SecResult.OK:
+            self._do_init()
         else:
-            # Unsupported security type
-            print('error: security type')
+            if self.proto_ver == RFB_VERSION_3_8:
+                reason = ascii_str.read(self.reader)
+                print('reason: %s' % reason)
+            raise auth_exception.AuthException(secresult, reason)
+
+    def vnc_auth(self, password):
+        challenge = self.reader.read(16)
+
+        # Truncate passwords longer than 64 bits and pad short than 64 bits
+        password = '{:\0<8}'.format(password)[:8].encode()
+
+        # Note: The lowest bit of each byte is considered the first bit
+        # and the highest discarded as parity. This is the reverse order
+        # of most implementations of DES so the key may require adjustment
+        # to give the expected result.
+        passkey = []
+        for c in password:
+            passkey.append(int('{:08b}'.format(c)[::-1], 2))
+        key = DesKey(bytes(passkey))
+        result = key.encrypt(challenge)
+        self.writer.write(result)
+        self.writer.flush()
 
         # Read security result
         secresult = sec_result.SecResult(unsigned32.read(self.reader))
