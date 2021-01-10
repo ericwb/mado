@@ -9,7 +9,7 @@ def read_ver(reader):
 
 
 def write_ver(writer, data):
-    writer.write(data.encode())
+    writer.write(data.encode('ascii'))
     writer.flush()
 
 
@@ -24,10 +24,10 @@ def readinto(reader, byte_array):
     if bytes_read <= 0:
         raise BrokenPipeError(32, 'Broken pipe')
 
-    return byte_array.decode('ascii')
+    return byte_array.decode('utf-8')
 
 
 def write(writer, data):
     unsigned32.write(writer, len(data))
-    writer.send(data.encode(encoding='UTF-8'))
+    writer.send(data.encode(encoding='utf-8'))
     writer.flush()

@@ -19,9 +19,14 @@ class EncodingTypes(Enum):
     ZLIBHEX = 8
     TRLE = 15
     ZRLE = 16
-    # RealVNC = 1024 to 1099
-    CURSOR = -239
+
+    # Pseudo-encodings
     DESKTOP_SIZE = -223
+    LAST_RECT = -224
+    CURSOR = -239
+    DESKTOP_NAME = -307
+    XVP = -309
+    CONTINUOUS_UPDATES = -313
 
 
 class SetEncodings():

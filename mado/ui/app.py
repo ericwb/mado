@@ -11,6 +11,7 @@ from PIL import ImageTk
 from mado.rfb import auth_exception
 from mado.rfb import callback
 from mado.rfb import client
+from mado.rfb import encodings
 from mado.rfb import sec_types
 
 
@@ -48,16 +49,25 @@ class App(callback.ClientCallback):
         app_menu.add_command(label='About {}'.format(APP_NAME))
         app_menu.add_separator()
 
+        # Create the file menu and its menu items
         self.file_menu = tkinter.Menu(menubar)
-        menubar.add_cascade(label="File", menu=self.file_menu)
-        self.file_menu.add_command(label="Open...", command=self._open_connection)
+        menubar.add_cascade(label='File', menu=self.file_menu)
+        self.file_menu.add_command(label='Open...', command=self._open_connection)
+        recent_menu = tkinter.Menu(self.file_menu)
+        self.file_menu.add_cascade(menu=recent_menu, label='Open Recent')
+        #for f in recent_files:
+        #    recent_menu.add_command(label=os.path.basename(f), command=lambda: openFile(f))
+        recent_menu.add_separator()
+        recent_menu.add_command(label='Clear items')
         self.file_menu.add_separator()
-        self.file_menu.add_command(label="Close", command=self._close_connection)
+        self.file_menu.add_command(label='Close', command=self._close_connection)
         self.file_menu.entryconfigure('Close', state=tkinter.DISABLED)
 
+        # Create the window menu and its menu items
         window_menu = tkinter.Menu(menubar, name='window')
         menubar.add_cascade(label='Window', menu=window_menu)
 
+        # Create the help menu and its menu items
         help_menu = tkinter.Menu(menubar, name='help')
         menubar.add_cascade(label='Help', menu=help_menu)
         self.window.createcommand('tk::mac::ShowHelp', self._about)
@@ -82,7 +92,6 @@ class App(callback.ClientCallback):
 
                 authenticated = False
                 if sec_type == sec_types.SecTypes.VNC_AUTH:
-                    print('attempting vnc auth')
                     while not authenticated:
                         password = simpledialog.askstring('Authentication',
                             'Password:', show='*')
@@ -94,7 +103,6 @@ class App(callback.ClientCallback):
                             print(auth_exc.secresult)
                             print(auth_exc.reason)
                 elif sec_type == sec_types.SecTypes.NONE:
-                    print('attempting no auth')
                     try:
                         self.rfb.no_auth()
                         authenticated = True
@@ -210,6 +218,8 @@ class App(callback.ClientCallback):
         self.tkimage = ImageTk.PhotoImage(image=self.main_img)
         self.canvas.create_image(0, 0, anchor=tkinter.NW, image=self.tkimage)
 
+    def cur_update(self, rect, encoding, data, bitmask):
+        pass
 
 def main():
     app = App()

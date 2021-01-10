@@ -1,6 +1,7 @@
 # Copyright © 2020 Eric Brown
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
+import math
 import socket
 import threading
 
@@ -57,13 +58,9 @@ class Client(threading.Thread):
                 if msg_type == msg_types.MessageTypes.FRAMEBUFFER_UPDATE:
                     self.handle_fb_update()
                     fb_update = fb_update_req.FramebufferUpdateRequestMsg()
-                    fb_update.write(
-                        self.writer,
-                        0,
-                        0,
+                    fb_update.write(self.writer, 0, 0,
                         self.server_init_msg.fb_width,
-                        self.server_init_msg.fb_height
-                    )
+                        self.server_init_msg.fb_height)
                 elif msg_type == msg_types.MessageTypes.SET_COLOR_MAP_ENTRIES:
                     self.handle_color_map()
                 elif msg_type == msg_types.MessageTypes.BELL:
@@ -75,13 +72,28 @@ class Client(threading.Thread):
 
     def handle_fb_update(self):
         padding = unsigned8.read(self.reader)
-        for _ in range(unsigned16.read(self.reader)):
+        num_rects = unsigned16.read(self.reader)
+
+        i = 0
+        last_rect = False
+        while i < num_rects and not last_rect:
             rect = rectangle.Rectangle(self.reader)
             encoding = encodings.EncodingTypes(signed32.read(self.reader))
             bytes_per_pixel = self.server_init_msg.pix_format.bits_per_pixel // 8
             data_size = rect.width * rect.height * bytes_per_pixel
             data = self.reader.read(data_size)
-            self.callback.fb_update(rect, encoding, data)
+            if encoding == encodings.EncodingTypes.RAW:
+                self.callback.fb_update(rect, encoding, data)
+            elif encoding == encodings.EncodingTypes.LAST_RECT:
+                last_rect = True
+            elif encoding == encodings.EncodingTypes.CURSOR:
+                mask_size = math.floor((rect.width + 7) / 8) * rect.height
+                bitmask = self.reader.read(mask_size)
+                self.callback.cur_update(rect, encoding, data, bitmask)
+            elif encoding == encodings.EncodingTypes.DESKTOP_NAME:
+                desktop_name = ascii_str.read(self.reader)
+                # TODO: callback to update desktop name
+            i += 1
 
     def handle_color_map(self):
         pass
@@ -199,12 +211,19 @@ class Client(threading.Thread):
         set_encodings = encodings.SetEncodings()
         supported_encodings = [
             encodings.EncodingTypes.RAW,
+            encodings.EncodingTypes.DESKTOP_SIZE,
+            encodings.EncodingTypes.LAST_RECT,
+            encodings.EncodingTypes.CURSOR,
+            encodings.EncodingTypes.DESKTOP_NAME,
+            encodings.EncodingTypes.XVP,
+            encodings.EncodingTypes.CONTINUOUS_UPDATES,
         ]
         set_encodings.write(self.writer, supported_encodings)
 
         # Request first update
         fb_upd_req = fb_update_req.FramebufferUpdateRequestMsg()
-        fb_upd_req.write(self.writer, 0, 0, self.server_init_msg.fb_width, self.server_init_msg.fb_height, False)
+        fb_upd_req.write(self.writer, 0, 0, self.server_init_msg.fb_width,
+            self.server_init_msg.fb_height, False)
 
     def key_down(self, key):
         kevent = key_event.KeyEvent()
