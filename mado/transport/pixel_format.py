@@ -13,8 +13,8 @@ class PixelFormat():
     def read(self, reader):
         self.bits_per_pixel = unsigned8.read(reader)
         self.depth = unsigned8.read(reader)
-        self.big_endian_flag = unsigned8.read(reader)
-        self.true_colour_flag = unsigned8.read(reader)
+        self.big_endian = True if unsigned8.read(reader) else False
+        self.true_color = True if unsigned8.read(reader) else False
         self.red_max = unsigned16.read(reader)
         self.green_max = unsigned16.read(reader)
         self.blue_max = unsigned16.read(reader)

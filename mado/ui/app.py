@@ -14,6 +14,7 @@ from mado.transport import client
 from mado.transport import sec_types
 
 
+APP_NAME = 'Mado'
 DEFAULT_WIDTH = 640
 DEFAULT_HEIGHT = 480
 
@@ -23,9 +24,10 @@ class App(callback.ClientCallback):
     def __init__(self):
         # Create the main window
         self.window = tkinter.Tk()
-        self.window.title('Mado')
+        self.window.title(APP_NAME)
         self.window.minsize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
-        self.canvas = tkinter.Canvas(self.window, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, highlightthickness=0)
+        self.canvas = tkinter.Canvas(self.window, width=DEFAULT_WIDTH,
+            height=DEFAULT_HEIGHT, highlightthickness=0)
         self.resize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
 
         # Add the menu bar
@@ -37,12 +39,13 @@ class App(callback.ClientCallback):
     # Add menubar and menu items
     def add_menu_bar(self):
         self.window.option_add('*tearOff', False)
-        self.window.createcommand('tk::mac::ShowPreferences', self._show_preferences)
+        self.window.createcommand('tk::mac::ShowPreferences',
+            self._show_preferences)
 
         menubar = tkinter.Menu(self.window)
         app_menu = tkinter.Menu(menubar, name='apple')
         menubar.add_cascade(menu=app_menu)
-        app_menu.add_command(label='About Mado')
+        app_menu.add_command(label='About {}'.format(APP_NAME))
         app_menu.add_separator()
 
         self.file_menu = tkinter.Menu(menubar)
@@ -81,7 +84,8 @@ class App(callback.ClientCallback):
                 if sec_type == sec_types.SecTypes.VNC_AUTH:
                     print('attempting vnc auth')
                     while not authenticated:
-                        password = simpledialog.askstring('Authentication', 'Password:', show='*')
+                        password = simpledialog.askstring('Authentication',
+                            'Password:', show='*')
                         try:
                             self.rdp.vnc_auth(password)
                             authenticated = True
@@ -101,9 +105,26 @@ class App(callback.ClientCallback):
                     print('Unknown security type: {}'.format(sec_type))
 
                 if authenticated:
-                    self.resize(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height)
-                    self.main_img = Image.new(mode='RGBA', size=(self.rdp.server_init_msg.fb_width, self.rdp.server_init_msg.fb_height))
+                    # Set window dimensions
+                    self.resize(self.rdp.server_init_msg.fb_width,
+                        self.rdp.server_init_msg.fb_height)
+                    self.main_img = Image.new(mode='RGBX',
+                        size=(self.rdp.server_init_msg.fb_width,
+                            self.rdp.server_init_msg.fb_height))
                     self.canvas.pack(expand=True, fill=tkinter.BOTH)
+
+                    # Determine image mode
+                    pix_fmt = self.rdp.server_init_msg.pix_format
+                    if (pix_fmt.depth == 24 and not pix_fmt.big_endian and
+                            pix_fmt.true_color and pix_fmt.red_max == 255 and
+                            pix_fmt.green_max == 255 and pix_fmt.blue_max == 255):
+                        self.image_mode = list('RGB')
+                        self.image_mode[pix_fmt.red_shift // 8] = 'R'
+                        self.image_mode[pix_fmt.green_shift // 8] = 'G'
+                        self.image_mode[pix_fmt.blue_shift // 8] = 'B'
+                        self.image_mode = ''.join(self.image_mode) + 'X'
+
+                    # Set the winow title
                     self.window.title(self.rdp.server_init_msg.name)
 
                     # Bind key and mouse events to window
@@ -118,7 +139,6 @@ class App(callback.ClientCallback):
                 print(error)
                 messagebox.showwarning(title='Error', message=error.strerror)
                 self.rdp.close()
-                return
 
     def _close_connection(self):
         # Disable close menu item
@@ -134,7 +154,7 @@ class App(callback.ClientCallback):
         self.rdp.close()
 
         self.tkimage = None
-        self.window.title('Mado')
+        self.window.title(APP_NAME)
         self.window.minsize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
         self.resize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
 
@@ -184,13 +204,8 @@ class App(callback.ClientCallback):
         # This might be faster if data is a series of ints, so the frombytes can
         # be skipped
         #self.main_img.paste(data, box=(rect.x, rect.y, rect.width, rect.height))
-        image = Image.frombytes(
-            'RGB',
-            (rect.width, rect.height),
-            data,
-            encoding.name.lower(),
-            'BGRX'
-        )
+        image = Image.frombytes('RGB', (rect.width, rect.height), data,
+            encoding.name.lower(), self.image_mode)
         self.main_img.paste(image, (rect.x, rect.y))
         self.tkimage = ImageTk.PhotoImage(image=self.main_img)
         self.canvas.create_image(0, 0, anchor=tkinter.NW, image=self.tkimage)
