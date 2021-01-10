@@ -1,8 +1,8 @@
 # Copyright © 2020 Eric Brown
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
-from mado.transport import unsigned8
-from mado.transport import unsigned16
+from mado.rfb import unsigned8
+from mado.rfb import unsigned16
 
 
 class PixelFormat():

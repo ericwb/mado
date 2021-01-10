@@ -6,29 +6,29 @@ import threading
 
 from des import DesKey
 
-from mado.transport import ascii_str
-from mado.transport import auth_exception
-from mado.transport import client_init
-from mado.transport import encodings
-from mado.transport import fb_update_req
-from mado.transport import key_event
-from mado.transport import msg_types
-from mado.transport import pointer_event
-from mado.transport import rectangle
-from mado.transport import sec_result
-from mado.transport import sec_types
-from mado.transport import server_init
-from mado.transport import signed32
-from mado.transport import unsigned8
-from mado.transport import unsigned16
-from mado.transport import unsigned32
+from mado.rfb import ascii_str
+from mado.rfb import auth_exception
+from mado.rfb import client_init
+from mado.rfb import encodings
+from mado.rfb import fb_update_req
+from mado.rfb import key_event
+from mado.rfb import msg_types
+from mado.rfb import pointer_event
+from mado.rfb import rectangle
+from mado.rfb import sec_result
+from mado.rfb import sec_types
+from mado.rfb import server_init
+from mado.rfb import signed32
+from mado.rfb import unsigned8
+from mado.rfb import unsigned16
+from mado.rfb import unsigned32
 
 # Protocol versions supported
 RFB_VERSION_3_8 = 'RFB 003.008\n'
 RFB_VERSION_3_7 = 'RFB 003.007\n'
 RFB_VERSION_3_3 = 'RFB 003.003\n'
 
-RDP_PORT = 5900
+RFB_PORT = 5900
 
 
 class Client(threading.Thread):
@@ -92,7 +92,7 @@ class Client(threading.Thread):
     def handle_cut_text(self):
         pass
 
-    def connect(self, hostname, port=RDP_PORT, timeout=15):
+    def connect(self, hostname, port=RFB_PORT, timeout=15):
         """
         Connect and authenticate to an RFB server.
 

@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from enum import Enum
 
-from mado.transport import msg_types
-from mado.transport import signed32
-from mado.transport import unsigned8
-from mado.transport import unsigned16
+from mado.rfb import msg_types
+from mado.rfb import signed32
+from mado.rfb import unsigned8
+from mado.rfb import unsigned16
 
 
 class EncodingTypes(Enum):

@@ -1,9 +1,9 @@
 # Copyright © 2020 Eric Brown
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
-from mado.transport import ascii_str
-from mado.transport import pixel_format
-from mado.transport import unsigned16
+from mado.rfb import ascii_str
+from mado.rfb import pixel_format
+from mado.rfb import unsigned16
 
 
 class ServerInitMsg():

@@ -8,10 +8,10 @@ from tkinter import simpledialog
 from PIL import Image
 from PIL import ImageTk
 
-from mado.transport import auth_exception
-from mado.transport import callback
-from mado.transport import client
-from mado.transport import sec_types
+from mado.rfb import auth_exception
+from mado.rfb import callback
+from mado.rfb import client
+from mado.rfb import sec_types
 
 
 APP_NAME = 'Mado'
@@ -70,14 +70,14 @@ class App(callback.ClientCallback):
         if address:
             host_port = address.split(':')
             hostname = host_port[0]
-            port = int(host_port[1]) if len(host_port) > 1 else client.RDP_PORT
+            port = int(host_port[1]) if len(host_port) > 1 else client.RFB_PORT
 
             # Initialize client
-            self.rdp = client.Client(self)
+            self.rfb = client.Client(self)
 
             try:
                 # Establish a connection
-                sec_type = self.rdp.connect(hostname, port)
+                sec_type = self.rfb.connect(hostname, port)
                 print('sec_type: {}'.format(sec_type))
 
                 authenticated = False
@@ -87,7 +87,7 @@ class App(callback.ClientCallback):
                         password = simpledialog.askstring('Authentication',
                             'Password:', show='*')
                         try:
-                            self.rdp.vnc_auth(password)
+                            self.rfb.vnc_auth(password)
                             authenticated = True
                         except auth_exception.AuthException as auth_exc:
                             print('AuthException')
@@ -96,7 +96,7 @@ class App(callback.ClientCallback):
                 elif sec_type == sec_types.SecTypes.NONE:
                     print('attempting no auth')
                     try:
-                        self.rdp.no_auth()
+                        self.rfb.no_auth()
                         authenticated = True
                     except auth_exception.AuthException as auth_exc:
                         print(auth_exc.secresult)
@@ -106,15 +106,15 @@ class App(callback.ClientCallback):
 
                 if authenticated:
                     # Set window dimensions
-                    self.resize(self.rdp.server_init_msg.fb_width,
-                        self.rdp.server_init_msg.fb_height)
+                    self.resize(self.rfb.server_init_msg.fb_width,
+                        self.rfb.server_init_msg.fb_height)
                     self.main_img = Image.new(mode='RGBX',
-                        size=(self.rdp.server_init_msg.fb_width,
-                            self.rdp.server_init_msg.fb_height))
+                        size=(self.rfb.server_init_msg.fb_width,
+                            self.rfb.server_init_msg.fb_height))
                     self.canvas.pack(expand=True, fill=tkinter.BOTH)
 
                     # Determine image mode
-                    pix_fmt = self.rdp.server_init_msg.pix_format
+                    pix_fmt = self.rfb.server_init_msg.pix_format
                     if (pix_fmt.depth == 24 and not pix_fmt.big_endian and
                             pix_fmt.true_color and pix_fmt.red_max == 255 and
                             pix_fmt.green_max == 255 and pix_fmt.blue_max == 255):
@@ -125,7 +125,7 @@ class App(callback.ClientCallback):
                         self.image_mode = ''.join(self.image_mode) + 'X'
 
                     # Set the winow title
-                    self.window.title(self.rdp.server_init_msg.name)
+                    self.window.title(self.rfb.server_init_msg.name)
 
                     # Bind key and mouse events to window
                     self.window.bind('<KeyPress>', self._on_key_down)
@@ -138,7 +138,7 @@ class App(callback.ClientCallback):
             except OSError as error:
                 print(error)
                 messagebox.showwarning(title='Error', message=error.strerror)
-                self.rdp.close()
+                self.rfb.close()
 
     def _close_connection(self):
         # Disable close menu item
@@ -151,7 +151,7 @@ class App(callback.ClientCallback):
         self.window.unbind('<Button>')
 
         # Close the client connection
-        self.rdp.close()
+        self.rfb.close()
 
         self.tkimage = None
         self.window.title(APP_NAME)
@@ -181,18 +181,18 @@ class App(callback.ClientCallback):
     def _on_key_down(self, event):
         """Print the character associated to the key pressed"""
         print(event)
-        self.rdp.key_down(event.keysym)
+        self.rfb.key_down(event.keysym)
 
     def _on_key_up(self, event):
         """Print the character associated to the key pressed"""
         print(event)
-        self.rdp.key_up(event.keysym)
+        self.rfb.key_up(event.keysym)
 
     def _on_mouse_move(self, event):
         """Print the character associated to the key pressed"""
         print(event)
         if event.x >= 0 and event.y >= 0:
-            self.rdp.mouse_move(0, event.x, event.y)
+            self.rfb.mouse_move(0, event.x, event.y)
 
     def _on_mouse_button(self, event):
         print(event)
