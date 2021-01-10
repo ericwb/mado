@@ -5,7 +5,7 @@ from mado.transport import unsigned32
 
 
 def read_ver(reader):
-    return str(reader.read(12), encoding='ascii')
+    return str(reader.readline(12), encoding='ascii')
 
 
 def write_ver(writer, data):
@@ -15,7 +15,16 @@ def write_ver(writer, data):
 
 def read(reader):
     length = unsigned32.read(reader)
-    return reader.read(length).decode('ascii')
+    byte_array = bytearray(length)
+    return readinto(reader, byte_array)
+
+
+def readinto(reader, byte_array):
+    bytes_read = reader.readinto(byte_array)
+    if bytes_read <= 0:
+        raise BrokenPipeError(32, 'Broken pipe')
+
+    return byte_array.decode('ascii')
 
 
 def write(writer, data):
