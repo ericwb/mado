@@ -7,3 +7,6 @@ class ClientCallback():
 
     def cur_update(rect, encoding, data, bitmask):
         pass
+
+    def bell():
+        pass

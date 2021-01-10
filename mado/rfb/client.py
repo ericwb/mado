@@ -82,6 +82,7 @@ class Client(threading.Thread):
             bytes_per_pixel = self.server_init_msg.pix_format.bits_per_pixel // 8
             data_size = rect.width * rect.height * bytes_per_pixel
             data = self.reader.read(data_size)
+
             if encoding == encodings.EncodingTypes.RAW:
                 self.callback.fb_update(rect, encoding, data)
             elif encoding == encodings.EncodingTypes.LAST_RECT:
@@ -99,7 +100,7 @@ class Client(threading.Thread):
         pass
 
     def handle_bell(self):
-        pass
+        self.callback.bell()
 
     def handle_cut_text(self):
         pass
@@ -211,12 +212,12 @@ class Client(threading.Thread):
         set_encodings = encodings.SetEncodings()
         supported_encodings = [
             encodings.EncodingTypes.RAW,
-            encodings.EncodingTypes.DESKTOP_SIZE,
+            #encodings.EncodingTypes.DESKTOP_SIZE,
             encodings.EncodingTypes.LAST_RECT,
             encodings.EncodingTypes.CURSOR,
             encodings.EncodingTypes.DESKTOP_NAME,
-            encodings.EncodingTypes.XVP,
-            encodings.EncodingTypes.CONTINUOUS_UPDATES,
+            #encodings.EncodingTypes.XVP,
+            #encodings.EncodingTypes.CONTINUOUS_UPDATES,
         ]
         set_encodings.write(self.writer, supported_encodings)
 

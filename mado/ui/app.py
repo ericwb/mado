@@ -221,5 +221,9 @@ class App(callback.ClientCallback):
     def cur_update(self, rect, encoding, data, bitmask):
         pass
 
+    def bell():
+        print('\a')
+
+
 def main():
     app = App()
