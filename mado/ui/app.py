@@ -185,10 +185,11 @@ class App(callback.ClientCallback):
         # be skipped
         #self.main_img.paste(data, box=(rect.x, rect.y, rect.width, rect.height))
         image = Image.frombytes(
-            mode='RGBX',
-            size=(rect.width, rect.height),
-            data=data,
-            decoder_name=encoding.name.lower()
+            'RGB',
+            (rect.width, rect.height),
+            data,
+            encoding.name.lower(),
+            'BGRX'
         )
         self.main_img.paste(image, (rect.x, rect.y))
         self.tkimage = ImageTk.PhotoImage(image=self.main_img)
