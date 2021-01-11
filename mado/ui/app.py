@@ -198,7 +198,7 @@ class App(callback.ClientCallback):
 
     def _on_mouse_move(self, event):
         """Print the character associated to the key pressed"""
-        print(event)
+        #print(event)
         if event.x >= 0 and event.y >= 0:
             self.rfb.mouse_move(0, event.x, event.y)
 

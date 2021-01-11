@@ -1,6 +1,7 @@
 # Copyright © 2020 Eric Brown
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
+import errno
 import math
 import socket
 import threading
@@ -57,8 +58,7 @@ class Client(threading.Thread):
 
                 if msg_type == msg_types.MessageTypes.FRAMEBUFFER_UPDATE:
                     self.handle_fb_update()
-                    fb_update = fb_update_req.FramebufferUpdateRequestMsg()
-                    fb_update.write(self.writer, 0, 0,
+                    fb_update_req.write(self.writer, 0, 0,
                         self.server_init_msg.fb_width,
                         self.server_init_msg.fb_height)
                 elif msg_type == msg_types.MessageTypes.SET_COLOR_MAP_ENTRIES:
@@ -103,7 +103,11 @@ class Client(threading.Thread):
         self.callback.bell()
 
     def handle_cut_text(self):
-        pass
+        padding = unsigned8.read(self.reader)
+        padding = unsigned8.read(self.reader)
+        padding = unsigned8.read(self.reader)
+        cut_text = ascii_str.read(self.reader)
+        print(cut_text)
 
     def connect(self, hostname, port=RFB_PORT, timeout=15):
         """
@@ -151,8 +155,8 @@ class Client(threading.Thread):
             ascii_str.write_ver(self.writer, self.proto_ver)
             sec_type = unsigned32.read(self.reader)
         else:
-            # TODO: error unsupported version
-            print('error: unsupported version: {}'.format(self.proto_ver))
+            raise ConnectionAbortedError(errno.ECONNABORTED,
+                'Unsupported version: {}'.format(self.proto_ver))
         return sec_type
 
     def no_auth(self):
@@ -209,7 +213,6 @@ class Client(threading.Thread):
         self.start_thread()
 
         # Send supported encodings
-        set_encodings = encodings.SetEncodings()
         supported_encodings = [
             encodings.EncodingTypes.RAW,
             #encodings.EncodingTypes.DESKTOP_SIZE,
@@ -219,24 +222,20 @@ class Client(threading.Thread):
             #encodings.EncodingTypes.XVP,
             #encodings.EncodingTypes.CONTINUOUS_UPDATES,
         ]
-        set_encodings.write(self.writer, supported_encodings)
+        encodings.write(self.writer, supported_encodings)
 
         # Request first update
-        fb_upd_req = fb_update_req.FramebufferUpdateRequestMsg()
-        fb_upd_req.write(self.writer, 0, 0, self.server_init_msg.fb_width,
+        fb_update_req.write(self.writer, 0, 0, self.server_init_msg.fb_width,
             self.server_init_msg.fb_height, False)
 
     def key_down(self, key):
-        kevent = key_event.KeyEvent()
-        kevent.write(self.writer, down_flag=True, key=key)
+        key_event.write(self.writer, down_flag=True, key=key)
 
     def key_up(self, key):
-        kevent = key_event.KeyEvent()
-        kevent.write(self.writer, down_flag=False, key=key)
+        key_event.write(self.writer, down_flag=False, key=key)
 
     def mouse_move(self, button_mask, x, y):
-        pevent = pointer_event.PointerEvent()
-        pevent.write(self.writer, button_mask, x, y)
+        pointer_event.write(self.writer, button_mask, x, y)
 
     def close(self):
         self.stop_thread()

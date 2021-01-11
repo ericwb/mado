@@ -1,6 +1,9 @@
 # Copyright © 2020 Eric Brown
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
+import errno
+import os
+
 from mado.rfb import unsigned32
 
 
@@ -22,7 +25,7 @@ def read(reader):
 def readinto(reader, byte_array):
     bytes_read = reader.readinto(byte_array)
     if bytes_read <= 0:
-        raise BrokenPipeError(32, 'Broken pipe')
+        raise BrokenPipeError(errno.EPIPE, os.strerror(errno.EPIPE))
 
     return byte_array.decode('utf-8')
 

@@ -1,10 +1,9 @@
 # Copyright © 2020 Eric Brown
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
+import struct
+
 from mado.rfb import msg_types
-from mado.rfb import unsigned8
-from mado.rfb import unsigned16
-from mado.rfb import unsigned32
 
 
 KEY_MAP = {
@@ -80,16 +79,11 @@ KEY_MAP = {
 }
 
 
-class KeyEvent():
-
-    def __init__(self):
-        self.msg_type = msg_types.MessageTypes.KEY_EVENT
-
-    def write(self, writer, down_flag, key):
-        unsigned8.write(writer, self.msg_type.value)
-        unsigned8.write(writer, 1 if down_flag else 0)
-        unsigned16.write(writer, 0)
-        if key in KEY_MAP:
-            unsigned32.write(writer, KEY_MAP[key])
-        else:
-            unsigned32.write(writer, ord(key))
+def write(writer, down_flag, key):
+    writer.write(struct.pack(
+        '!BBxxI',
+        msg_types.MessageTypes.KEY_EVENT.value,
+        1 if down_flag else 0,
+        KEY_MAP[key] if key in KEY_MAP else ord(key)
+    ))
+    writer.flush()
