@@ -4,6 +4,7 @@
 import errno
 import math
 import socket
+import struct
 import threading
 
 from des import DesKey
@@ -150,7 +151,8 @@ class Client(threading.Thread):
                 if sectypes[i] == sec_types.SecTypes.NONE:
                     sec_type = sec_types.SecTypes.NONE
                     break
-            unsigned8.write(self.writer, sec_type.value)
+            self.writer.write(struct.pack('!B', sec_type.value))
+            self.writer.flush()
         elif self.proto_ver == RFB_VERSION_3_3:
             ascii_str.write_ver(self.writer, self.proto_ver)
             sec_type = unsigned32.read(self.reader)
@@ -202,8 +204,7 @@ class Client(threading.Thread):
 
     def _do_init(self):
         # Write client initialization message
-        client_init_msg = client_init.ClientInitMsg()
-        client_init_msg.write(self.writer)
+        client_init.write(self.writer)
 
         # Read server initialization message
         self.server_init_msg = server_init.ServerInitMsg(self.reader)
