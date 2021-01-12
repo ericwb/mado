@@ -28,10 +28,8 @@ class ServerInitMsg():
 
     def read(self, reader):
         byte_array = bytearray(struct.calcsize(FORMAT))
-        bytes_read = reader.readinto(byte_array)
-        if bytes_read <= 0:
+        if reader.readinto(byte_array) <= 0:
             raise BrokenPipeError(errno.EPIPE, os.strerror(errno.EPIPE))
-
         (self.fb_width, self.fb_height) = struct.unpack(FORMAT, byte_array)
         self.pix_format = pixel_format.PixelFormat(reader)
         self.name = ascii_str.read(reader)

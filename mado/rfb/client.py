@@ -32,6 +32,7 @@ RFB_VERSION_3_7 = 'RFB 003.007\n'
 RFB_VERSION_3_3 = 'RFB 003.003\n'
 
 RFB_PORT = 5900
+TIMEOUT = 15
 
 
 class Client(threading.Thread):
@@ -44,6 +45,7 @@ class Client(threading.Thread):
         self.writer = None
         self.setDaemon(True)
         self.active = False
+
         self.fb_width = 0
         self.fb_height = 0
         self.pix_format = None
@@ -110,7 +112,7 @@ class Client(threading.Thread):
         cut_text = ascii_str.read(self.reader)
         print(cut_text)
 
-    def connect(self, hostname, port=RFB_PORT, timeout=15):
+    def connect(self, hostname, port=RFB_PORT, timeout=TIMEOUT):
         """
         Connect and authenticate to an RFB server.
 

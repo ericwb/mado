@@ -31,10 +31,8 @@ class PixelFormat():
 
     def read(self, reader):
         byte_array = bytearray(struct.calcsize(FORMAT))
-        bytes_read = reader.readinto(byte_array)
-        if bytes_read <= 0:
+        if reader.readinto(byte_array) <= 0:
             raise BrokenPipeError(errno.EPIPE, os.strerror(errno.EPIPE))
-
         (self.bits_per_pixel, self.depth, self.big_endian, self.true_color,
             self.red_max, self.green_max, self.blue_max, self.red_shift,
             self.green_shift, self.blue_shift) = struct.unpack(FORMAT, byte_array)

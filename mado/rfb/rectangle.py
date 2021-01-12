@@ -27,10 +27,8 @@ class Rectangle():
 
     def read(self, reader):
         byte_array = bytearray(struct.calcsize(FORMAT))
-        bytes_read = reader.readinto(byte_array)
-        if bytes_read <= 0:
+        if reader.readinto(byte_array) <= 0:
             raise BrokenPipeError(errno.EPIPE, os.strerror(errno.EPIPE))
-
         (self.x, self.y, self.width, self.height, encoding) = struct.unpack(FORMAT, byte_array)
         self.encoding = encodings.EncodingTypes(encoding)
 

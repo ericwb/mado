@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import errno
 import os
+import struct
 
 from mado.rfb import unsigned32
 
@@ -18,19 +19,20 @@ def write_ver(writer, data):
 
 def read(reader):
     length = unsigned32.read(reader)
+    return read_len(reader, length)
+
+
+def read_len(reader, length):
     byte_array = bytearray(length)
     return readinto(reader, byte_array)
 
 
 def readinto(reader, byte_array):
-    bytes_read = reader.readinto(byte_array)
-    if bytes_read <= 0:
+    if reader.readinto(byte_array) <= 0:
         raise BrokenPipeError(errno.EPIPE, os.strerror(errno.EPIPE))
-
-    return byte_array.decode('utf-8')
+    return struct.unpack('!{}s'.format(len(byte_array)), byte_array)
 
 
 def write(writer, data):
-    unsigned32.write(writer, len(data))
-    writer.send(data.encode(encoding='utf-8'))
+    writer.write(struct.pack('!I{}s'.format(len(data)), len(data), data))
     writer.flush()
