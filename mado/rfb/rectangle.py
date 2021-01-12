@@ -1,7 +1,23 @@
 # Copyright © 2020 Eric Brown
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
-from mado.rfb import unsigned16
+import errno
+import os
+import struct
+
+from mado.rfb import encodings
+
+
+# +--------------+--------------+---------------+
+# | No. of bytes | Type [Value] | Description   |
+# +--------------+--------------+---------------+
+# | 2            | U16          | x-position    |
+# | 2            | U16          | y-position    |
+# | 2            | U16          | width         |
+# | 2            | U16          | height        |
+# | 4            | S32          | encoding-type |
+# +--------------+--------------+---------------+
+FORMAT = '!HHHHi'
 
 
 class Rectangle():
@@ -10,10 +26,13 @@ class Rectangle():
         self.read(reader)
 
     def read(self, reader):
-        self.x = unsigned16.read(reader)
-        self.y = unsigned16.read(reader)
-        self.width = unsigned16.read(reader)
-        self.height = unsigned16.read(reader)
+        byte_array = bytearray(struct.calcsize(FORMAT))
+        bytes_read = reader.readinto(byte_array)
+        if bytes_read <= 0:
+            raise BrokenPipeError(errno.EPIPE, os.strerror(errno.EPIPE))
+
+        (self.x, self.y, self.width, self.height, encoding) = struct.unpack(FORMAT, byte_array)
+        self.encoding = encodings.EncodingTypes(encoding)
 
     def __repr__(self):
         return 'Rectangle: %s' % vars(self)

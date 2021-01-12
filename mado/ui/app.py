@@ -110,19 +110,18 @@ class App(callback.ClientCallback):
                         print(auth_exc.secresult)
                         print(auth_exc.reason)
                 else:
+                    # TODO: raise exception
                     print('Unknown security type: {}'.format(sec_type))
 
                 if authenticated:
                     # Set window dimensions
-                    self.resize(self.rfb.server_init_msg.fb_width,
-                        self.rfb.server_init_msg.fb_height)
+                    self.resize(self.rfb.fb_width, self.rfb.fb_height)
                     self.main_img = Image.new(mode='RGBX',
-                        size=(self.rfb.server_init_msg.fb_width,
-                            self.rfb.server_init_msg.fb_height))
+                        size=(self.rfb.fb_width, self.rfb.fb_height))
                     self.canvas.pack(expand=True, fill=tkinter.BOTH)
 
                     # Determine image mode
-                    pix_fmt = self.rfb.server_init_msg.pix_format
+                    pix_fmt = self.rfb.pix_format
                     if (pix_fmt.depth == 24 and not pix_fmt.big_endian and
                             pix_fmt.true_color and pix_fmt.red_max == 255 and
                             pix_fmt.green_max == 255 and pix_fmt.blue_max == 255):
@@ -133,7 +132,7 @@ class App(callback.ClientCallback):
                         self.image_mode = ''.join(self.image_mode) + 'X'
 
                     # Set the winow title
-                    self.window.title(self.rfb.server_init_msg.name)
+                    self.window.title(self.rfb.display_name)
 
                     # Bind key and mouse events to window
                     self.window.bind('<KeyPress>', self._on_key_down)
@@ -197,7 +196,6 @@ class App(callback.ClientCallback):
         self.rfb.key_up(event.keysym)
 
     def _on_mouse_move(self, event):
-        """Print the character associated to the key pressed"""
         #print(event)
         if event.x >= 0 and event.y >= 0:
             self.rfb.mouse_move(0, event.x, event.y)
@@ -208,17 +206,14 @@ class App(callback.ClientCallback):
     def get_password(self):
         return simpledialog.askstring('Authentication', 'Password:', show='*')
 
-    def fb_update(self, rect, encoding, data):
-        # This might be faster if data is a series of ints, so the frombytes can
-        # be skipped
-        #self.main_img.paste(data, box=(rect.x, rect.y, rect.width, rect.height))
+    def fb_update(self, rect, data):
         image = Image.frombytes('RGB', (rect.width, rect.height), data,
-            encoding.name.lower(), self.image_mode)
+            rect.encoding.name.lower(), self.image_mode)
         self.main_img.paste(image, (rect.x, rect.y))
         self.tkimage = ImageTk.PhotoImage(image=self.main_img)
         self.canvas.create_image(0, 0, anchor=tkinter.NW, image=self.tkimage)
 
-    def cur_update(self, rect, encoding, data, bitmask):
+    def cur_update(self, rect, data, bitmask):
         pass
 
     def bell():
