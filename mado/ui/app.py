@@ -213,6 +213,12 @@ class App(callback.ClientCallback):
         self.tkimage = ImageTk.PhotoImage(image=self.main_img)
         self.canvas.create_image(0, 0, anchor=tkinter.NW, image=self.tkimage)
 
+    def fb_copy(src_x, src_y, rect):
+        image = self.main_img.crop((src_x, src_y, rect.width, rect.height))
+        self.main_img.paste(image, (rect.x, rect.y))
+        self.tkimage = ImageTk.PhotoImage(image=self.main_img)
+        self.canvas.create_image(0, 0, anchor=tkinter.NW, image=self.tkimage)
+
     def cur_update(self, rect, data, bitmask):
         pass
 

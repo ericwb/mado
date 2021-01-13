@@ -6,6 +6,7 @@ import math
 import socket
 import struct
 import threading
+import zlib
 
 from des import DesKey
 
@@ -50,6 +51,7 @@ class Client(threading.Thread):
         self.fb_height = 0
         self.pix_format = None
         self.display_name = None
+        self.zlib_stream = zlib.decompressobj(0)
 
     def start_thread(self):
         self.active = True
@@ -73,7 +75,7 @@ class Client(threading.Thread):
                 elif msg_type == msg_types.MessageTypes.SERVER_CUT_TEXT:
                     self.handle_cut_text()
         except OSError as error:
-            print(error)
+            print('OSError: {}'.format(error))
 
     def handle_fb_update(self):
         padding = unsigned8.read(self.reader)
@@ -83,21 +85,48 @@ class Client(threading.Thread):
         last_rect = False
         while i < num_rects and not last_rect:
             rect = rectangle.Rectangle(self.reader)
-            data_size = rect.width * rect.height * self.pix_format.bytes_per_pixel
-            data = self.reader.read(data_size)
 
             if rect.encoding == encodings.EncodingTypes.RAW:
-                self.callback.fb_update(rect, data)
+                self.handle_raw(rect)
+            elif rect.encoding == encodings.EncodingTypes.COPY_RECT:
+                self.handle_copy_rect(rect)
+            elif rect.encoding == encodings.EncodingTypes.ZLIB:
+                self.handle_zlib(rect)
             elif rect.encoding == encodings.EncodingTypes.LAST_RECT:
                 last_rect = True
             elif rect.encoding == encodings.EncodingTypes.CURSOR:
-                mask_size = math.floor((rect.width + 7) / 8) * rect.height
-                bitmask = self.reader.read(mask_size)
-                self.callback.cur_update(rect, data, bitmask)
+                self.handle_cursor(rect)
             elif rect.encoding == encodings.EncodingTypes.DESKTOP_NAME:
-                self.desktop_name = ascii_str.read(self.reader)
-                # TODO: callback to update desktop name
+                self.handle_desktop_name(rect)
             i += 1
+
+    def handle_raw(self, rect):
+        data_size = rect.width * rect.height * self.pix_format.bytes_per_pixel
+        pixels = self.reader.read(data_size)
+        self.callback.fb_update(rect, pixels)
+
+    def handle_copy_rect(self, rect):
+        fmt = '!HH'
+        byte_array = bytearray(struct.calcsize(fmt))
+        if self.reader.readinto(byte_array) <= 0:
+            raise BrokenPipeError(errno.EPIPE, os.strerror(errno.EPIPE))
+        (src_x, src_y) = struct.unpack(fmt, byte_array)
+        self.callback.fb_copy(src_x, src_y, rect)
+
+    def handle_zlib(self, rect):
+        pixels = self.zlib_stream.decompress(data)
+        self.callback.fb_update(rect, pixels)
+
+    def handle_cursor(self, rect):
+        data_size = rect.width * rect.height * self.pix_format.bytes_per_pixel
+        cur_pixels = self.reader.read(data_size)
+        mask_size = math.floor((rect.width + 7) / 8) * rect.height
+        bitmask = self.reader.read(mask_size)
+        self.callback.cur_update(rect, cur_pixels, bitmask)
+
+    def handle_desktop_name(self, rect):
+        self.desktop_name = ascii_str.read(self.reader)
+        # TODO: callback to update desktop name
 
     def handle_color_map(self):
         pass
@@ -126,7 +155,7 @@ class Client(threading.Thread):
         """
 
         # Create socket connection
-        self.sock = socket.create_connection((hostname, port), timeout)
+        self.sock = socket.create_connection((hostname, port))
         self.reader = self.sock.makefile(mode='rb')
         self.writer = self.sock.makefile(mode='wb')
 
@@ -222,6 +251,8 @@ class Client(threading.Thread):
         # Send supported encodings
         supported_encodings = [
             encodings.EncodingTypes.RAW,
+            encodings.EncodingTypes.COPY_RECT,
+            encodings.EncodingTypes.ZLIB,
             #encodings.EncodingTypes.DESKTOP_SIZE,
             encodings.EncodingTypes.LAST_RECT,
             encodings.EncodingTypes.CURSOR,

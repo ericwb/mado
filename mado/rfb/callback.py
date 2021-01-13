@@ -2,10 +2,13 @@
 
 class ClientCallback():
 
-    def fb_update(rect, encoding, data):
+    def fb_update(rect, data):
         pass
 
-    def cur_update(rect, encoding, data, bitmask):
+    def fb_copy(src_x, src_y, rect):
+        pass
+
+    def cur_update(rect, data, bitmask):
         pass
 
     def bell():
