@@ -138,7 +138,8 @@ class App(callback.ClientCallback):
                     self.window.bind('<KeyPress>', self._on_key_down)
                     self.window.bind('<KeyRelease>', self._on_key_up)
                     self.window.bind('<Motion>', self._on_mouse_move)
-                    self.window.bind('<Button>', self._on_mouse_button)
+                    self.window.bind('<ButtonPress>', self._on_mouse_down)
+                    self.window.bind('<ButtonRelease>', self._on_mouse_up)
 
                     # Enable the Close menu item
                     self.file_menu.entryconfigure('Close', state=tkinter.NORMAL)
@@ -155,7 +156,8 @@ class App(callback.ClientCallback):
         self.window.unbind('<KeyPress>')
         self.window.unbind('<KeyRelease>')
         self.window.unbind('<Motion>')
-        self.window.unbind('<Button>')
+        self.window.unbind('<ButtonPress>')
+        self.window.unbind('<ButtonRelease>')
 
         # Close the client connection
         self.rfb.close()
@@ -198,10 +200,28 @@ class App(callback.ClientCallback):
     def _on_mouse_move(self, event):
         #print(event)
         if event.x >= 0 and event.y >= 0:
-            self.rfb.mouse_move(0, event.x, event.y)
+            if event.state == 256:
+                self.rfb.mouse_move(1, event.x, event.y)
+            elif event.state == 512:
+                self.rfb.mouse_move(2, event.x, event.y)
+            elif event.state == 1024:
+                self.rfb.mouse_move(3, event.x, event.y)
+            else:
+                self.rfb.mouse_move(0, event.x, event.y)
 
-    def _on_mouse_button(self, event):
-        print(event)
+    def _on_mouse_down(self, event):
+        #print(event)
+        if event.x >= 0 and event.y >= 0:
+            # On macOS, button2 maps to right
+            num = 3 if event.num == 2 else event.num
+            self.rfb.mouse_down(num, event.x, event.y)
+
+    def _on_mouse_up(self, event):
+        #print(event)
+        if event.x >= 0 and event.y >= 0:
+            # On macOS, button2 maps to right
+            num = 3 if event.num == 2 else event.num
+            self.rfb.mouse_up(num, event.x, event.y)
 
     def get_password(self):
         return simpledialog.askstring('Authentication', 'Password:', show='*')

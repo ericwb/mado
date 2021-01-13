@@ -79,11 +79,11 @@ KEY_MAP = {
 }
 
 
-def write(writer, down_flag, key):
+def write(writer, down, key):
     writer.write(struct.pack(
         '!BBxxI',
         msg_types.MessageTypes.KEY_EVENT.value,
-        1 if down_flag else 0,
+        1 if down else 0,
         KEY_MAP[key] if key in KEY_MAP else ord(key)
     ))
     writer.flush()

@@ -266,13 +266,19 @@ class Client(threading.Thread):
         fb_update_req.write(self.writer, 0, 0, self.fb_width, self.fb_height, False)
 
     def key_down(self, key):
-        key_event.write(self.writer, down_flag=True, key=key)
+        key_event.write(self.writer, down=True, key=key)
 
     def key_up(self, key):
-        key_event.write(self.writer, down_flag=False, key=key)
+        key_event.write(self.writer, down=False, key=key)
 
-    def mouse_move(self, button_mask, x, y):
-        pointer_event.write(self.writer, button_mask, x, y)
+    def mouse_move(self, button, x, y):
+        pointer_event.write(self.writer, True if button else False, button, x, y)
+
+    def mouse_down(self, button, x, y):
+        pointer_event.write(self.writer, True, button, x, y)
+
+    def mouse_up(self, button, x, y):
+        pointer_event.write(self.writer, False, button, x, y)
 
     def close(self):
         self.stop_thread()
