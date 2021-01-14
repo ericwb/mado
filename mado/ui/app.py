@@ -138,6 +138,7 @@ class App(callback.ClientCallback):
                     self.window.bind('<KeyPress>', self._on_key_down)
                     self.window.bind('<KeyRelease>', self._on_key_up)
                     self.window.bind('<Motion>', self._on_mouse_move)
+                    self.window.bind('<MouseWheel>', self._on_mouse_wheel)
                     self.window.bind('<ButtonPress>', self._on_mouse_down)
                     self.window.bind('<ButtonRelease>', self._on_mouse_up)
 
@@ -156,6 +157,7 @@ class App(callback.ClientCallback):
         self.window.unbind('<KeyPress>')
         self.window.unbind('<KeyRelease>')
         self.window.unbind('<Motion>')
+        self.window.unbind('<MouseWheel>')
         self.window.unbind('<ButtonPress>')
         self.window.unbind('<ButtonRelease>')
 
@@ -209,17 +211,22 @@ class App(callback.ClientCallback):
             else:
                 self.rfb.mouse_move(0, event.x, event.y)
 
+    def _on_mouse_wheel(self, event):
+        print(event)
+
     def _on_mouse_down(self, event):
-        #print(event)
+        print(event)
         if event.x >= 0 and event.y >= 0:
-            # On macOS, button2 maps to right
+            # Swap buttons 2 and 3
+            num = 2 if event.num == 3 else event.num
             num = 3 if event.num == 2 else event.num
             self.rfb.mouse_down(num, event.x, event.y)
 
     def _on_mouse_up(self, event):
-        #print(event)
+        print(event)
         if event.x >= 0 and event.y >= 0:
-            # On macOS, button2 maps to right
+            # Swap buttons 2 and 3
+            num = 2 if event.num == 3 else event.num
             num = 3 if event.num == 2 else event.num
             self.rfb.mouse_up(num, event.x, event.y)
 
