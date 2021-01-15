@@ -70,7 +70,7 @@ class App(callback.ClientCallback):
         with open(PLIST_FILE, 'rb') as file:
             data = plistlib.load(file)
         for key, value in data['recent'].items():
-            self.recent_menu.insert(0, 'command', label=key, command=lambda: self._connect(value))
+            self.recent_menu.add_command(label=key, command=lambda x=value: self._connect(x))
 
         self.recent_menu.add_separator()
         self.recent_menu.add_command(label='Clear items', command=self._clear_recent)
@@ -96,79 +96,80 @@ class App(callback.ClientCallback):
             self._connect(address)
 
     def _connect(self, address):
-            host_port = address.split(':')
-            hostname = host_port[0]
-            port = int(host_port[1]) if len(host_port) > 1 else client.RFB_PORT
+        print(address)
+        host_port = address.split(':')
+        hostname = host_port[0]
+        port = int(host_port[1]) if len(host_port) > 1 else client.RFB_PORT
 
-            # Initialize client
-            self.rfb = client.Client(self)
+        # Initialize client
+        self.rfb = client.Client(self)
 
-            try:
-                # Establish a connection
-                sec_type = self.rfb.connect(hostname, port)
-                print('sec_type: {}'.format(sec_type))
+        try:
+            # Establish a connection
+            sec_type = self.rfb.connect(hostname, port)
+            print('sec_type: {}'.format(sec_type))
 
-                authenticated = False
-                if sec_type == sec_types.SecTypes.VNC_AUTH:
-                    while not authenticated:
-                        password = simpledialog.askstring('Authentication',
-                            'Password:', show='*')
-                        try:
-                            self.rfb.vnc_auth(password)
-                            authenticated = True
-                        except auth_exception.AuthException as auth_exc:
-                            print('AuthException')
-                            print(auth_exc.secresult)
-                            print(auth_exc.reason)
-                elif sec_type == sec_types.SecTypes.NONE:
+            authenticated = False
+            if sec_type == sec_types.SecTypes.VNC_AUTH:
+                while not authenticated:
+                    password = simpledialog.askstring('Authentication',
+                        'Password:', show='*')
                     try:
-                        self.rfb.no_auth()
+                        self.rfb.vnc_auth(password)
                         authenticated = True
                     except auth_exception.AuthException as auth_exc:
+                        print('AuthException')
                         print(auth_exc.secresult)
                         print(auth_exc.reason)
-                else:
-                    # TODO: raise exception
-                    print('Unknown security type: {}'.format(sec_type))
+            elif sec_type == sec_types.SecTypes.NONE:
+                try:
+                    self.rfb.no_auth()
+                    authenticated = True
+                except auth_exception.AuthException as auth_exc:
+                    print(auth_exc.secresult)
+                    print(auth_exc.reason)
+            else:
+                # TODO: raise exception
+                print('Unknown security type: {}'.format(sec_type))
 
-                if authenticated:
-                    # Set window dimensions
-                    self.resize(self.rfb.fb_width, self.rfb.fb_height)
-                    self.main_img = Image.new(mode='RGBX',
-                        size=(self.rfb.fb_width, self.rfb.fb_height))
-                    self.canvas.pack(expand=True, fill=tkinter.BOTH)
+            if authenticated:
+                # Set window dimensions
+                self.resize(self.rfb.fb_width, self.rfb.fb_height)
+                self.main_img = Image.new(mode='RGBX',
+                    size=(self.rfb.fb_width, self.rfb.fb_height))
+                self.canvas.pack(expand=True, fill=tkinter.BOTH)
 
-                    # Determine image mode
-                    pix_fmt = self.rfb.pix_format
-                    if (pix_fmt.depth == 24 and not pix_fmt.big_endian and
-                            pix_fmt.true_color and pix_fmt.red_max == 255 and
-                            pix_fmt.green_max == 255 and pix_fmt.blue_max == 255):
-                        self.image_mode = list('RGB')
-                        self.image_mode[pix_fmt.red_shift // 8] = 'R'
-                        self.image_mode[pix_fmt.green_shift // 8] = 'G'
-                        self.image_mode[pix_fmt.blue_shift // 8] = 'B'
-                        self.image_mode = ''.join(self.image_mode) + 'X'
+                # Determine image mode
+                pix_fmt = self.rfb.pix_format
+                if (pix_fmt.depth == 24 and not pix_fmt.big_endian and
+                        pix_fmt.true_color and pix_fmt.red_max == 255 and
+                        pix_fmt.green_max == 255 and pix_fmt.blue_max == 255):
+                    self.image_mode = list('RGB')
+                    self.image_mode[pix_fmt.red_shift // 8] = 'R'
+                    self.image_mode[pix_fmt.green_shift // 8] = 'G'
+                    self.image_mode[pix_fmt.blue_shift // 8] = 'B'
+                    self.image_mode = ''.join(self.image_mode) + 'X'
 
-                    # Set the winow title
-                    self.window.title(self.rfb.display_name)
+                # Set the winow title
+                self.window.title(self.rfb.display_name)
 
-                    # Bind key and mouse events to window
-                    self.window.bind('<KeyPress>', self._on_key_down)
-                    self.window.bind('<KeyRelease>', self._on_key_up)
-                    self.window.bind('<Motion>', self._on_mouse_move)
-                    self.window.bind('<MouseWheel>', self._on_mouse_wheel)
-                    self.window.bind('<ButtonPress>', self._on_mouse_down)
-                    self.window.bind('<ButtonRelease>', self._on_mouse_up)
+                # Bind key and mouse events to window
+                self.window.bind('<KeyPress>', self._on_key_down)
+                self.window.bind('<KeyRelease>', self._on_key_up)
+                self.window.bind('<Motion>', self._on_mouse_move)
+                self.window.bind('<MouseWheel>', self._on_mouse_wheel)
+                self.window.bind('<ButtonPress>', self._on_mouse_down)
+                self.window.bind('<ButtonRelease>', self._on_mouse_up)
 
-                    # Enable the Close menu item
-                    self.file_menu.entryconfigure('Close', state=tkinter.NORMAL)
+                # Enable the Close menu item
+                self.file_menu.entryconfigure('Close', state=tkinter.NORMAL)
 
-                    # Add to list of recent connections
-                    self._add_to_recent(self.rfb.display_name, address)
-            except OSError as error:
-                print(error)
-                messagebox.showwarning(title='Error', message=error.strerror)
-                self.rfb.close()
+                # Add to list of recent connections
+                self._add_to_recent(self.rfb.display_name, address)
+        except OSError as error:
+            print(error)
+            messagebox.showwarning(title='Error', message=error.strerror)
+            self.rfb.close()
 
     def _close_connection(self):
         # Disable close menu item
@@ -256,7 +257,7 @@ class App(callback.ClientCallback):
         with open(PLIST_FILE, 'rb') as file:
             data = plistlib.load(file)
         if display_name not in data['recent']:
-            self.recent_menu.insert(0, 'command', label=display_name, command=lambda: self._connect(address))
+            self.recent_menu.insert(0, 'command', label=display_name, command=lambda x=address: self._connect(x))
             data['recent'][display_name] = address
             with open(PLIST_FILE, 'wb') as file:
                 plistlib.dump(data, file)
