@@ -30,7 +30,8 @@ def read_len(reader, length):
 def readinto(reader, byte_array):
     if reader.readinto(byte_array) <= 0:
         raise BrokenPipeError(errno.EPIPE, os.strerror(errno.EPIPE))
-    return struct.unpack('!{}s'.format(len(byte_array)), byte_array)
+    (string,) = struct.unpack('!{}s'.format(len(byte_array)), byte_array)
+    return string.decode('utf-8')
 
 
 def write(writer, data):

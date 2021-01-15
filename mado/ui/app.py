@@ -1,6 +1,9 @@
 # Copyright © 2020 Eric Brown
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
+import getpass
+import os
+import plistlib
 import tkinter
 from tkinter import messagebox
 from tkinter import simpledialog
@@ -19,6 +22,7 @@ APP_NAME = 'Mado'
 DEFAULT_WIDTH = 640
 DEFAULT_HEIGHT = 480
 
+PLIST_FILE = '/Users/{}/Library/Preferences/com.github.mado.plist'.format(getpass.getuser())
 
 class App(callback.ClientCallback):
 
@@ -30,6 +34,13 @@ class App(callback.ClientCallback):
         self.canvas = tkinter.Canvas(self.window, width=DEFAULT_WIDTH,
             height=DEFAULT_HEIGHT, highlightthickness=0)
         self.resize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+
+        # Create our property list file if not exists
+        if not os.path.exists(PLIST_FILE):
+            with open(PLIST_FILE, 'wb') as file:
+                data = {}
+                data['recent'] = {}
+                plistlib.dump(data, file)
 
         # Add the menu bar
         self.add_menu_bar()
@@ -53,12 +64,16 @@ class App(callback.ClientCallback):
         self.file_menu = tkinter.Menu(menubar)
         menubar.add_cascade(label='File', menu=self.file_menu)
         self.file_menu.add_command(label='Open...', command=self._open_connection)
-        recent_menu = tkinter.Menu(self.file_menu)
-        self.file_menu.add_cascade(menu=recent_menu, label='Open Recent')
-        #for f in recent_files:
-        #    recent_menu.add_command(label=os.path.basename(f), command=lambda: openFile(f))
-        recent_menu.add_separator()
-        recent_menu.add_command(label='Clear items')
+        self.recent_menu = tkinter.Menu(self.file_menu)
+        self.file_menu.add_cascade(menu=self.recent_menu, label='Open Recent')
+
+        with open(PLIST_FILE, 'rb') as file:
+            data = plistlib.load(file)
+        for key, value in data['recent'].items():
+            self.recent_menu.insert(0, 'command', label=key, command=lambda: self._connect(value))
+
+        self.recent_menu.add_separator()
+        self.recent_menu.add_command(label='Clear items', command=self._clear_recent)
         self.file_menu.add_separator()
         self.file_menu.add_command(label='Close', command=self._close_connection)
         self.file_menu.entryconfigure('Close', state=tkinter.DISABLED)
@@ -78,6 +93,9 @@ class App(callback.ClientCallback):
     def _open_connection(self):
         address = simpledialog.askstring('Open', 'Hostname:')
         if address:
+            self._connect(address)
+
+    def _connect(self, address):
             host_port = address.split(':')
             hostname = host_port[0]
             port = int(host_port[1]) if len(host_port) > 1 else client.RFB_PORT
@@ -144,6 +162,9 @@ class App(callback.ClientCallback):
 
                     # Enable the Close menu item
                     self.file_menu.entryconfigure('Close', state=tkinter.NORMAL)
+
+                    # Add to list of recent connections
+                    self._add_to_recent(self.rfb.display_name, address)
             except OSError as error:
                 print(error)
                 messagebox.showwarning(title='Error', message=error.strerror)
@@ -202,6 +223,7 @@ class App(callback.ClientCallback):
     def _on_mouse_move(self, event):
         #print(event)
         if event.x >= 0 and event.y >= 0:
+            # TODO: need to swap buttons 2 and 3
             if event.state == 256:
                 self.rfb.mouse_move(1, event.x, event.y)
             elif event.state == 512:
@@ -215,7 +237,7 @@ class App(callback.ClientCallback):
         print(event)
 
     def _on_mouse_down(self, event):
-        print(event)
+        #print(event)
         if event.x >= 0 and event.y >= 0:
             # Swap buttons 2 and 3
             num = 2 if event.num == 3 else event.num
@@ -223,12 +245,30 @@ class App(callback.ClientCallback):
             self.rfb.mouse_down(num, event.x, event.y)
 
     def _on_mouse_up(self, event):
-        print(event)
+        #print(event)
         if event.x >= 0 and event.y >= 0:
             # Swap buttons 2 and 3
             num = 2 if event.num == 3 else event.num
             num = 3 if event.num == 2 else event.num
             self.rfb.mouse_up(num, event.x, event.y)
+
+    def _add_to_recent(self, display_name, address):
+        with open(PLIST_FILE, 'rb') as file:
+            data = plistlib.load(file)
+        if display_name not in data['recent']:
+            self.recent_menu.insert(0, 'command', label=display_name, command=lambda: self._connect(address))
+            data['recent'][display_name] = address
+            with open(PLIST_FILE, 'wb') as file:
+                plistlib.dump(data, file)
+
+    def _clear_recent(self):
+        with open(PLIST_FILE, 'rb') as file:
+            data = plistlib.load(file)
+        for item in data['recent']:
+            self.recent_menu.delete(item)
+        with open(PLIST_FILE, 'wb') as file:
+            data['recent'] = {}
+            plistlib.dump(data, file)
 
     def get_password(self):
         return simpledialog.askstring('Authentication', 'Password:', show='*')
