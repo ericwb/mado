@@ -235,7 +235,11 @@ class App(callback.ClientCallback):
                 self.rfb.mouse_move(0, event.x, event.y)
 
     def _on_mouse_wheel(self, event):
-        print(event)
+        #print(event)
+        if event.x >= 0 and event.y >= 0:
+            for _ in range(abs(event.delta)):
+                self.rfb.mouse_down(4 if event.delta > 0 else 5, event.x, event.y)
+                self.rfb.mouse_up(4 if event.delta > 0 else 5, event.x, event.y)
 
     def _on_mouse_down(self, event):
         #print(event)
