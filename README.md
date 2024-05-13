@@ -1,1 +1,15 @@
-# mado
+# mado - a window view into your systems
+
+## Quick Start
+
+Install dependencies
+```bash
+brew install python-tk
+pyenv install 3.12.2
+pip install Pillow des
+```
+To run:
+```bash
+python main.py
+```
+
