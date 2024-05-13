@@ -129,4 +129,10 @@ dmypy.json
 .pyre/
 
 .DS_Store
+.stestr/
+AUTHORS
+ChangeLog
+
+
+.DS_Store
 
