@@ -18,3 +18,14 @@ To build into macOS App:
 ```bash
 python setup.py py2app
 ```
+
+You can run this compiled app like so:
+
+```bash
+open dist/Mado.app
+```
+Alternatively you can run in a debug mode with console logging like so:
+
+```bash
+open dist/Mado.app/Contents/MacOS/Mado
+```
