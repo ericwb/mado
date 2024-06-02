@@ -6,6 +6,7 @@ import math
 import socket
 import struct
 import threading
+import traceback
 import zlib
 
 from des import DesKey
@@ -51,7 +52,7 @@ class Client(threading.Thread):
         self.fb_height = 0
         self.pix_format = None
         self.display_name = None
-        self.zlib_stream = zlib.decompressobj(0)
+        self.zlib_stream = zlib.decompressobj()
 
     def start_thread(self):
         self.active = True
@@ -75,6 +76,7 @@ class Client(threading.Thread):
                 elif msg_type == msg_types.MessageTypes.SERVER_CUT_TEXT:
                     self.handle_cut_text()
         except OSError as error:
+            traceback.print_exc()
             print('OSError: {}'.format(error))
 
     def handle_fb_update(self):
@@ -114,7 +116,11 @@ class Client(threading.Thread):
         self.callback.fb_copy(src_x, src_y, rect)
 
     def handle_zlib(self, rect):
-        pixels = self.zlib_stream.decompress(data)
+        data_size = unsigned32.read(self.reader)
+        compressed = self.reader.read(data_size)
+        pixels = b''
+        pixels += self.zlib_stream.decompress(compressed)
+        pixels += self.zlib_stream.flush()
         self.callback.fb_update(rect, pixels)
 
     def handle_cursor(self, rect):
