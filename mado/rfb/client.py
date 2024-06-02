@@ -77,7 +77,6 @@ class Client(threading.Thread):
                     self.handle_cut_text()
         except OSError as error:
             traceback.print_exc()
-            print('OSError: {}'.format(error))
 
     def handle_fb_update(self):
         padding = unsigned8.read(self.reader)
@@ -92,6 +91,8 @@ class Client(threading.Thread):
                 self.handle_raw(rect)
             elif rect.encoding == encodings.EncodingTypes.COPY_RECT:
                 self.handle_copy_rect(rect)
+            elif rect.encoding == encodings.EncodingTypes.RRE:
+                self.handle_rre(rect)
             elif rect.encoding == encodings.EncodingTypes.ZLIB:
                 self.handle_zlib(rect)
             elif rect.encoding == encodings.EncodingTypes.LAST_RECT:
@@ -114,6 +115,18 @@ class Client(threading.Thread):
             raise BrokenPipeError(errno.EPIPE, os.strerror(errno.EPIPE))
         (src_x, src_y) = struct.unpack(fmt, byte_array)
         self.callback.fb_copy(src_x, src_y, rect)
+
+    def handle_rre(self, rect):
+        num_subrects = unsigned32.read(self.reader)
+        bg_pixel = self.reader.read(self.pix_format.bytes_per_pixel)
+
+        for _ in range(num_subrects):
+            subrect_pixel = self.reader.read(self.pix_format.bytes_per_pixel)
+            x_pos = unsigned16.read(self.reader)
+            y_pos = unsigned16.read(self.reader)
+            width = unsigned16.read(self.reader)
+            height = unsigned16.read(self.reader)
+            # TODO: build image rects and update framebuffer
 
     def handle_zlib(self, rect):
         data_size = unsigned32.read(self.reader)
@@ -258,6 +271,7 @@ class Client(threading.Thread):
         supported_encodings = [
             encodings.EncodingTypes.RAW,
             encodings.EncodingTypes.COPY_RECT,
+            encodings.EncodingTypes.RRE,
             encodings.EncodingTypes.ZLIB,
             #encodings.EncodingTypes.DESKTOP_SIZE,
             encodings.EncodingTypes.LAST_RECT,
