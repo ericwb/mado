@@ -5,6 +5,7 @@ import getpass
 import os
 import plistlib
 import tkinter
+import traceback
 from tkinter import messagebox
 from tkinter import simpledialog
 
@@ -167,7 +168,7 @@ class App(callback.ClientCallback):
                 # Add to list of recent connections
                 self._add_to_recent(self.rfb.display_name, address)
         except OSError as error:
-            print(error)
+            traceback.print_exc()
             messagebox.showwarning(title='Error', message=error.strerror)
             self.rfb.close()
 
@@ -280,7 +281,7 @@ class App(callback.ClientCallback):
 
     def fb_update(self, rect, data):
         image = Image.frombytes('RGB', (rect.width, rect.height), data,
-            rect.encoding.name.lower(), self.image_mode)
+            "raw", self.image_mode)
         self.main_img.paste(image, (rect.x, rect.y))
         self.tkimage = ImageTk.PhotoImage(image=self.main_img)
         self.canvas.create_image(0, 0, anchor=tkinter.NW, image=self.tkimage)
