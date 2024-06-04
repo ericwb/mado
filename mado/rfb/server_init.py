@@ -18,11 +18,10 @@ from mado.rfb import pixel_format
 # | 4            | U32          | name-length                  |
 # | name-length  | U8 array     | name-string                  |
 # +--------------+--------------+------------------------------+
-FORMAT = '!HH'
+FORMAT = "!HH"
 
 
-class ServerInitMsg():
-
+class ServerInitMsg:
     def __init__(self, reader):
         self.read(reader)
 
@@ -35,7 +34,7 @@ class ServerInitMsg():
         self.name = ascii_str.read(reader)
 
     def __repr__(self):
-        return 'ServerInitMsg: %s' % vars(self)
+        return "ServerInitMsg: %s" % vars(self)
 
     def __str__(self):
-        return 'ServerInitMsg: %s' % vars(self)
+        return "ServerInitMsg: %s" % vars(self)

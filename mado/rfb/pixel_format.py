@@ -21,11 +21,10 @@ import struct
 # | 1            | U8           | blue-shift      |
 # | 3            |              | padding         |
 # +--------------+--------------+-----------------+
-FORMAT = '!BBBBHHHBBBxxx'
+FORMAT = "!BBBBHHHBBBxxx"
 
 
-class PixelFormat():
-
+class PixelFormat:
     def __init__(self, reader):
         self.read(reader)
 
@@ -33,13 +32,22 @@ class PixelFormat():
         byte_array = bytearray(struct.calcsize(FORMAT))
         if reader.readinto(byte_array) <= 0:
             raise BrokenPipeError(errno.EPIPE, os.strerror(errno.EPIPE))
-        (self.bits_per_pixel, self.depth, self.big_endian, self.true_color,
-            self.red_max, self.green_max, self.blue_max, self.red_shift,
-            self.green_shift, self.blue_shift) = struct.unpack(FORMAT, byte_array)
+        (
+            self.bits_per_pixel,
+            self.depth,
+            self.big_endian,
+            self.true_color,
+            self.red_max,
+            self.green_max,
+            self.blue_max,
+            self.red_shift,
+            self.green_shift,
+            self.blue_shift,
+        ) = struct.unpack(FORMAT, byte_array)
         self.bytes_per_pixel = self.bits_per_pixel // 8
 
     def __repr__(self):
-        return 'PixelFormat: %s' % vars(self)
+        return f"PixelFormat: {vars(self)}"
 
     def __str__(self):
-        return 'PixelFormat: %s' % vars(self)
+        return f"PixelFormat: {vars(self)}"

@@ -1,8 +1,8 @@
 # Copyright © 2020 Eric Brown
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
-from enum import Enum
 import struct
+from enum import Enum
 
 from mado.rfb import msg_types
 
@@ -28,11 +28,13 @@ class EncodingTypes(Enum):
 
 
 def write(writer, supported_encodings):
-    writer.write(struct.pack(
-        '!BxH',
-        msg_types.MessageTypes.SET_ENCODINGS.value,
-        len(supported_encodings)
-    ))
+    writer.write(
+        struct.pack(
+            "!BxH",
+            msg_types.MessageTypes.SET_ENCODINGS.value,
+            len(supported_encodings),
+        )
+    )
     for encoding in supported_encodings:
         writer.write(struct.pack("!i", encoding.value))
     writer.flush()

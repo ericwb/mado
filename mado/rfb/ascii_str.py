@@ -9,11 +9,11 @@ from mado.rfb import unsigned32
 
 
 def read_ver(reader):
-    return str(reader.readline(12), encoding='ascii')
+    return str(reader.readline(12), encoding="ascii")
 
 
 def write_ver(writer, data):
-    writer.write(data.encode('ascii'))
+    writer.write(data.encode("ascii"))
     writer.flush()
 
 
@@ -30,10 +30,10 @@ def read_len(reader, length):
 def readinto(reader, byte_array):
     if reader.readinto(byte_array) <= 0:
         raise BrokenPipeError(errno.EPIPE, os.strerror(errno.EPIPE))
-    (string,) = struct.unpack('!{}s'.format(len(byte_array)), byte_array)
-    return string.decode('utf-8')
+    (string,) = struct.unpack(f"!{len(byte_array)}s", byte_array)
+    return string.decode("utf-8")
 
 
 def write(writer, data):
-    writer.write(struct.pack('!I{}s'.format(len(data)), len(data), data))
+    writer.write(struct.pack(f"!I{len(data)}s", len(data), data))
     writer.flush()

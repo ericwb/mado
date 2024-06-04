@@ -1620,7 +1620,7 @@ Table of Contents
 
    [RFC4254]  Ylonen, T. and C. Lonvick, "The Secure Shell (SSH)
               Connection Protocol", RFC 4254, January 2006.
-              
+
    [RFC4301]  Kent, S. and K. Seo, "Security Architecture for the
               Internet Protocol", RFC 4301, December 2005.
 
