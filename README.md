@@ -5,8 +5,8 @@
 Install dependencies
 ```bash
 brew install python-tk
-pyenv install 3.12.2
-pip install Pillow des py2app
+pyenv install 3.12
+pip install -r requirements.txt
 ```
 To run:
 ```bash
