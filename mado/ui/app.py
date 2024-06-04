@@ -17,6 +17,7 @@ from mado.rfb import callback
 from mado.rfb import client
 from mado.rfb import encodings
 from mado.rfb import sec_types
+from mado.ui import login
 
 
 APP_NAME = 'Mado'
@@ -111,7 +112,17 @@ class App(callback.ClientCallback):
             print('sec_type: {}'.format(sec_type))
 
             authenticated = False
-            if sec_type == sec_types.SecTypes.VNC_AUTH:
+            if sec_type == sec_types.SecTypes.DIFFIE_HELLMAN_AUTH:
+                while not authenticated:
+                    cred = login.LoginDialog(self.window, title="Authentication")
+                    try:
+                        self.rfb.dh_auth(cred.username, cred.password)
+                        authenticated = True
+                    except auth_exception.AuthException as auth_exc:
+                        print('AuthException')
+                        print(auth_exc.secresult)
+                        print(auth_exc.reason)
+            elif sec_type == sec_types.SecTypes.VNC_AUTH:
                 while not authenticated:
                     password = simpledialog.askstring('Authentication',
                         'Password:', show='*')

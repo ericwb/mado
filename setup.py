@@ -21,6 +21,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     python_requires='>=3.9',
     setup_requires=[
+        'cryptography',
         'py2app',
         'Pillow',
         'des'
