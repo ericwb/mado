@@ -2,7 +2,9 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 import errno
+import hashlib
 import math
+import os
 import socket
 import struct
 import threading
@@ -10,9 +12,16 @@ import traceback
 import zlib
 
 from des import DesKey
+from cryptography.hazmat.primitives.asymmetric import dh
+from cryptography.hazmat.primitives.ciphers import Cipher
+from cryptography.hazmat.primitives.ciphers import algorithms
+from cryptography.hazmat.primitives.ciphers import modes
+from cryptography.hazmat.primitives.serialization import Encoding
+from cryptography.hazmat.primitives.serialization import PublicFormat
 
 from mado.rfb import ascii_str
 from mado.rfb import auth_exception
+from mado.rfb import bigint
 from mado.rfb import client_init
 from mado.rfb import encodings
 from mado.rfb import fb_update_req
@@ -29,6 +38,7 @@ from mado.rfb import unsigned16
 from mado.rfb import unsigned32
 
 # Protocol versions supported
+RFB_VERSION_ARD = 'RFB 003.889\n'
 RFB_VERSION_3_8 = 'RFB 003.008\n'
 RFB_VERSION_3_7 = 'RFB 003.007\n'
 RFB_VERSION_3_3 = 'RFB 003.003\n'
@@ -87,12 +97,16 @@ class Client(threading.Thread):
         while i < num_rects and not last_rect:
             rect = rectangle.Rectangle(self.reader)
 
+            print(rect.encoding)
+
             if rect.encoding == encodings.EncodingTypes.RAW:
                 self.handle_raw(rect)
             elif rect.encoding == encodings.EncodingTypes.COPY_RECT:
                 self.handle_copy_rect(rect)
             elif rect.encoding == encodings.EncodingTypes.RRE:
                 self.handle_rre(rect)
+            elif rect.encoding == encodings.EncodingTypes.HEXTILE:
+                self.handle_hextile(rect)
             elif rect.encoding == encodings.EncodingTypes.ZLIB:
                 self.handle_zlib(rect)
             elif rect.encoding == encodings.EncodingTypes.LAST_RECT:
@@ -127,6 +141,27 @@ class Client(threading.Thread):
             width = unsigned16.read(self.reader)
             height = unsigned16.read(self.reader)
             # TODO: build image rects and update framebuffer
+
+    def handle_hextile(self, rect):
+        subencoding_mask = unsigned8.read(self.reader)
+        print(subencoding_mask)
+
+        # TODO
+        if subencoding_mask == 1:
+            # Raw
+            pass
+        elif subencoding_mask == 2:
+            # BackgroundSpecified
+            pass
+        elif subencoding_mask == 4:
+            # ForegroundSpecified
+            pass
+        elif subencoding_mask == 8:
+            # AnySubrects
+            pass
+        elif subencoding_mask == 16:
+            # SubrectsColored
+            pass
 
     def handle_zlib(self, rect):
         data_size = unsigned32.read(self.reader)
@@ -183,7 +218,7 @@ class Client(threading.Thread):
         print('protocol version: {}'.format(self.proto_ver))
 
         sec_type = sec_types.SecTypes.INVALID
-        if self.proto_ver in (RFB_VERSION_3_8, RFB_VERSION_3_7):
+        if self.proto_ver in (RFB_VERSION_ARD, RFB_VERSION_3_8, RFB_VERSION_3_7):
             ascii_str.write_ver(self.writer, self.proto_ver)
 
             num_sec_types = unsigned8.read(self.reader)
@@ -191,10 +226,17 @@ class Client(threading.Thread):
             print('number of security types: %d' % num_sec_types)
 
             for i in range(num_sec_types):
-                sectypes[i] = sec_types.SecTypes(unsigned8.read(self.reader))
-                print('sectypes[i]: %s' % sectypes[i])
+                try:
+                    sectype = unsigned8.read(self.reader)
+                    sectypes[i] = sec_types.SecTypes(sectype)
+                    print('sectypes[i]: %s' % sectypes[i])
+                except ValueError:
+                    print(f"Unknown sectypes: {sectype}")
 
             for i in range(num_sec_types):
+                #if sectypes[i] == sec_types.SecTypes.DIFFIE_HELLMAN_AUTH:
+                #    sec_type = sec_types.SecTypes.DIFFIE_HELLMAN_AUTH
+                #    break
                 if sectypes[i] == sec_types.SecTypes.VNC_AUTH:
                     sec_type = sec_types.SecTypes.VNC_AUTH
                     break
@@ -252,6 +294,83 @@ class Client(threading.Thread):
                 print('reason: %s' % reason)
             raise auth_exception.AuthException(secresult, reason)
 
+    def dh_auth(self, username, password):
+        generator = unsigned16.read(self.reader)
+        print(f"{generator = }")
+
+        key_size = unsigned16.read(self.reader)
+        print(f"{key_size = }")
+
+        prime_modulus = bigint.read_len(self.reader, key_size)
+        print(f"{prime_modulus = }")
+
+        public_value = bigint.read_len(self.reader, key_size)
+        print(f"{public_value = }")
+
+        param_nums = dh.DHParameterNumbers(prime_modulus, generator)
+        parameters = param_nums.parameters()
+
+        private_key = parameters.generate_private_key()
+        public_key = private_key.public_key()
+
+        server_public_nums = dh.DHPublicNumbers(public_value, param_nums)
+        server_public_key = server_public_nums.public_key()
+
+        shared_secret = private_key.exchange(server_public_key)
+        aes_key = hashlib.md5(shared_secret).digest()
+
+        def pad_to_64_bytes(data):
+            data = data.encode('utf-8') + b'\x00'
+            padding_length = 64 - len(data)
+            if padding_length > 0:
+                data += os.urandom(padding_length)
+            return data[:64]
+
+        padded_username = pad_to_64_bytes(username)
+        padded_password = pad_to_64_bytes(password)
+        plaintext_message = padded_username + padded_password
+
+        def encrypt_data(aes_key, plaintext):
+            cipher = Cipher(algorithms.AES(aes_key), modes.ECB())
+            encryptor = cipher.encryptor()
+            #padder = PKCS7(algorithms.AES.block_size).padder()
+            #padded_plaintext = padder.update(plaintext) + padder.finalize()
+            #ciphertext = encryptor.update(padded_plaintext) + encryptor.finalize()
+            ciphertext = encryptor.update(plaintext) + encryptor.finalize()
+            return ciphertext
+
+        ciphertext = encrypt_data(aes_key, plaintext_message)
+
+        self.writer.write(ciphertext)
+
+        #public_key_bytes = public_key.public_bytes(
+        #    encoding=Encoding.DER,
+        #    format=PublicFormat.SubjectPublicKeyInfo,
+        #)
+        public_numbers = public_key.public_numbers()
+        print(f"{public_numbers.parameter_numbers.p = }")
+        print(f"{public_numbers.y = }")
+
+        bigint.write_len(self.writer, public_numbers.parameter_numbers.p, 128)
+        bigint.write_len(self.writer, public_numbers.y, key_size)
+
+        #self.writer.write(public_key_bytes)
+        self.writer.flush()
+
+        # Read security result
+        secresult = sec_result.SecResult(unsigned32.read(self.reader))
+
+        print(secresult)
+
+        if secresult == sec_result.SecResult.OK:
+            self._do_init()
+        else:
+            reason = ""
+            if self.proto_ver in (RFB_VERSION_3_8):
+                reason = ascii_str.read(self.reader)
+                print('reason: %s' % reason)
+            raise auth_exception.AuthException(secresult, reason)
+
     def _do_init(self):
         # Write client initialization message
         client_init.write(self.writer)
@@ -271,7 +390,8 @@ class Client(threading.Thread):
         supported_encodings = [
             encodings.EncodingTypes.RAW,
             encodings.EncodingTypes.COPY_RECT,
-            encodings.EncodingTypes.RRE,
+            #encodings.EncodingTypes.RRE,
+            #encodings.EncodingTypes.HEXTILE,
             encodings.EncodingTypes.ZLIB,
             #encodings.EncodingTypes.DESKTOP_SIZE,
             encodings.EncodingTypes.LAST_RECT,

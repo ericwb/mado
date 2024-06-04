@@ -7,3 +7,4 @@ from enum import Enum
 class SecResult(Enum):
     OK = 0
     FAILED = 1
+    FAILED_TOO_MANY_ATTEMPTS = 2

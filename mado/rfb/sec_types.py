@@ -14,7 +14,16 @@ class SecTypes(Enum):
     # VNC Authentication
     VNC_AUTH = 2
 
-    # Tight Security Type
+    # RSA-AES
+    RSA_AES = 5
+
+    # RSA-AES Unencrypted
+    RSA_AES_UNENCRYPT = 6
+
+    # RSA-AES Two-step
+    RSA_AES_TWO_STEP = 13
+
+    # Tight
     TIGHT = 16
 
     # Ultra
@@ -34,5 +43,8 @@ class SecTypes(Enum):
 
     # Colin Dean xvp
     COLIN_DEAN_XVP = 22
+
+    # Diffie-Hellman Authentication
+    DIFFIE_HELLMAN_AUTH = 30
 
     # RealVNC = 128 to 255
