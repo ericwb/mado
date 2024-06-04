@@ -11,13 +11,11 @@ import threading
 import traceback
 import zlib
 
-from des import DesKey
 from cryptography.hazmat.primitives.asymmetric import dh
-from cryptography.hazmat.primitives.ciphers import Cipher
 from cryptography.hazmat.primitives.ciphers import algorithms
+from cryptography.hazmat.primitives.ciphers import Cipher
 from cryptography.hazmat.primitives.ciphers import modes
-from cryptography.hazmat.primitives.serialization import Encoding
-from cryptography.hazmat.primitives.serialization import PublicFormat
+from des import DesKey
 
 from mado.rfb import ascii_str
 from mado.rfb import auth_exception
@@ -32,23 +30,21 @@ from mado.rfb import rectangle
 from mado.rfb import sec_result
 from mado.rfb import sec_types
 from mado.rfb import server_init
-from mado.rfb import signed32
-from mado.rfb import unsigned8
 from mado.rfb import unsigned16
 from mado.rfb import unsigned32
+from mado.rfb import unsigned8
 
 # Protocol versions supported
-RFB_VERSION_ARD = 'RFB 003.889\n'
-RFB_VERSION_3_8 = 'RFB 003.008\n'
-RFB_VERSION_3_7 = 'RFB 003.007\n'
-RFB_VERSION_3_3 = 'RFB 003.003\n'
+RFB_VERSION_ARD = "RFB 003.889\n"
+RFB_VERSION_3_8 = "RFB 003.008\n"
+RFB_VERSION_3_7 = "RFB 003.007\n"
+RFB_VERSION_3_3 = "RFB 003.003\n"
 
 RFB_PORT = 5900
 TIMEOUT = 15
 
 
 class Client(threading.Thread):
-
     def __init__(self, callback):
         threading.Thread.__init__(self)
         self.callback = callback
@@ -78,14 +74,16 @@ class Client(threading.Thread):
 
                 if msg_type == msg_types.MessageTypes.FRAMEBUFFER_UPDATE:
                     self.handle_fb_update()
-                    fb_update_req.write(self.writer, 0, 0, self.fb_width, self.fb_height)
+                    fb_update_req.write(
+                        self.writer, 0, 0, self.fb_width, self.fb_height
+                    )
                 elif msg_type == msg_types.MessageTypes.SET_COLOR_MAP_ENTRIES:
                     self.handle_color_map()
                 elif msg_type == msg_types.MessageTypes.BELL:
                     self.handle_bell()
                 elif msg_type == msg_types.MessageTypes.SERVER_CUT_TEXT:
                     self.handle_cut_text()
-        except OSError as error:
+        except OSError:
             traceback.print_exc()
 
     def handle_fb_update(self):
@@ -123,7 +121,7 @@ class Client(threading.Thread):
         self.callback.fb_update(rect, pixels)
 
     def handle_copy_rect(self, rect):
-        fmt = '!HH'
+        fmt = "!HH"
         byte_array = bytearray(struct.calcsize(fmt))
         if self.reader.readinto(byte_array) <= 0:
             raise BrokenPipeError(errno.EPIPE, os.strerror(errno.EPIPE))
@@ -166,7 +164,7 @@ class Client(threading.Thread):
     def handle_zlib(self, rect):
         data_size = unsigned32.read(self.reader)
         compressed = self.reader.read(data_size)
-        pixels = b''
+        pixels = b""
         pixels += self.zlib_stream.decompress(compressed)
         pixels += self.zlib_stream.flush()
         self.callback.fb_update(rect, pixels)
@@ -210,31 +208,35 @@ class Client(threading.Thread):
 
         # Create socket connection
         self.sock = socket.create_connection((hostname, port))
-        self.reader = self.sock.makefile(mode='rb')
-        self.writer = self.sock.makefile(mode='wb')
+        self.reader = self.sock.makefile(mode="rb")
+        self.writer = self.sock.makefile(mode="wb")
 
         # Read server's version string
         self.proto_ver = ascii_str.read_ver(self.reader)
-        print('protocol version: {}'.format(self.proto_ver))
+        print(f"protocol version: {self.proto_ver}")
 
         sec_type = sec_types.SecTypes.INVALID
-        if self.proto_ver in (RFB_VERSION_ARD, RFB_VERSION_3_8, RFB_VERSION_3_7):
+        if self.proto_ver in (
+            RFB_VERSION_ARD,
+            RFB_VERSION_3_8,
+            RFB_VERSION_3_7,
+        ):
             ascii_str.write_ver(self.writer, self.proto_ver)
 
             num_sec_types = unsigned8.read(self.reader)
             sectypes = [None] * num_sec_types
-            print('number of security types: %d' % num_sec_types)
+            print(f"number of security types: {num_sec_types}")
 
             for i in range(num_sec_types):
                 try:
                     sectype = unsigned8.read(self.reader)
                     sectypes[i] = sec_types.SecTypes(sectype)
-                    print('sectypes[i]: %s' % sectypes[i])
+                    print(f"{sectypes[i] = }")
                 except ValueError:
                     print(f"Unknown sectypes: {sectype}")
 
             for i in range(num_sec_types):
-                #if sectypes[i] == sec_types.SecTypes.DIFFIE_HELLMAN_AUTH:
+                # if sectypes[i] == sec_types.SecTypes.DIFFIE_HELLMAN_AUTH:
                 #    sec_type = sec_types.SecTypes.DIFFIE_HELLMAN_AUTH
                 #    break
                 if sectypes[i] == sec_types.SecTypes.VNC_AUTH:
@@ -243,14 +245,16 @@ class Client(threading.Thread):
                 if sectypes[i] == sec_types.SecTypes.NONE:
                     sec_type = sec_types.SecTypes.NONE
                     break
-            self.writer.write(struct.pack('!B', sec_type.value))
+            self.writer.write(struct.pack("!B", sec_type.value))
             self.writer.flush()
         elif self.proto_ver == RFB_VERSION_3_3:
             ascii_str.write_ver(self.writer, self.proto_ver)
             sec_type = unsigned32.read(self.reader)
         else:
-            raise ConnectionAbortedError(errno.ECONNABORTED,
-                'Unsupported version: {}'.format(self.proto_ver))
+            raise ConnectionAbortedError(
+                errno.ECONNABORTED,
+                f"Unsupported version: {self.proto_ver}",
+            )
         return sec_type
 
     def no_auth(self):
@@ -262,14 +266,14 @@ class Client(threading.Thread):
         else:
             if self.proto_ver == RFB_VERSION_3_8:
                 reason = ascii_str.read(self.reader)
-                print('reason: %s' % reason)
+                print(f"{reason = }")
             raise auth_exception.AuthException(secresult, reason)
 
     def vnc_auth(self, password):
         challenge = self.reader.read(16)
 
         # Truncate passwords longer than 64 bits and pad short than 64 bits
-        password = '{:\0<8}'.format(password)[:8].encode()
+        password = f"{password:\0<8}"[:8].encode()
 
         # Note: The lowest bit of each byte is considered the first bit
         # and the highest discarded as parity. This is the reverse order
@@ -277,7 +281,7 @@ class Client(threading.Thread):
         # to give the expected result.
         passkey = []
         for c in password:
-            passkey.append(int('{:08b}'.format(c)[::-1], 2))
+            passkey.append(int(f"{c:08b}"[::-1], 2))
         key = DesKey(bytes(passkey))
         result = key.encrypt(challenge)
         self.writer.write(result)
@@ -291,7 +295,7 @@ class Client(threading.Thread):
         else:
             if self.proto_ver == RFB_VERSION_3_8:
                 reason = ascii_str.read(self.reader)
-                print('reason: %s' % reason)
+                print(f"{reason = }")
             raise auth_exception.AuthException(secresult, reason)
 
     def dh_auth(self, username, password):
@@ -320,7 +324,7 @@ class Client(threading.Thread):
         aes_key = hashlib.md5(shared_secret).digest()
 
         def pad_to_64_bytes(data):
-            data = data.encode('utf-8') + b'\x00'
+            data = data.encode("utf-8") + b"\x00"
             padding_length = 64 - len(data)
             if padding_length > 0:
                 data += os.urandom(padding_length)
@@ -333,9 +337,9 @@ class Client(threading.Thread):
         def encrypt_data(aes_key, plaintext):
             cipher = Cipher(algorithms.AES(aes_key), modes.ECB())
             encryptor = cipher.encryptor()
-            #padder = PKCS7(algorithms.AES.block_size).padder()
-            #padded_plaintext = padder.update(plaintext) + padder.finalize()
-            #ciphertext = encryptor.update(padded_plaintext) + encryptor.finalize()
+            # padder = PKCS7(algorithms.AES.block_size).padder()
+            # padded_plaintext = padder.update(plaintext) + padder.finalize()
+            # ciphertext = encryptor.update(padded_plaintext) + encryptor.finalize()
             ciphertext = encryptor.update(plaintext) + encryptor.finalize()
             return ciphertext
 
@@ -343,10 +347,10 @@ class Client(threading.Thread):
 
         self.writer.write(ciphertext)
 
-        #public_key_bytes = public_key.public_bytes(
+        # public_key_bytes = public_key.public_bytes(
         #    encoding=Encoding.DER,
         #    format=PublicFormat.SubjectPublicKeyInfo,
-        #)
+        # )
         public_numbers = public_key.public_numbers()
         print(f"{public_numbers.parameter_numbers.p = }")
         print(f"{public_numbers.y = }")
@@ -354,7 +358,7 @@ class Client(threading.Thread):
         bigint.write_len(self.writer, public_numbers.parameter_numbers.p, 128)
         bigint.write_len(self.writer, public_numbers.y, key_size)
 
-        #self.writer.write(public_key_bytes)
+        # self.writer.write(public_key_bytes)
         self.writer.flush()
 
         # Read security result
@@ -368,7 +372,7 @@ class Client(threading.Thread):
             reason = ""
             if self.proto_ver in (RFB_VERSION_3_8):
                 reason = ascii_str.read(self.reader)
-                print('reason: %s' % reason)
+                print(f"{reason = }")
             raise auth_exception.AuthException(secresult, reason)
 
     def _do_init(self):
@@ -390,20 +394,22 @@ class Client(threading.Thread):
         supported_encodings = [
             encodings.EncodingTypes.RAW,
             encodings.EncodingTypes.COPY_RECT,
-            #encodings.EncodingTypes.RRE,
-            #encodings.EncodingTypes.HEXTILE,
+            # encodings.EncodingTypes.RRE,
+            # encodings.EncodingTypes.HEXTILE,
             encodings.EncodingTypes.ZLIB,
-            #encodings.EncodingTypes.DESKTOP_SIZE,
+            # encodings.EncodingTypes.DESKTOP_SIZE,
             encodings.EncodingTypes.LAST_RECT,
             encodings.EncodingTypes.CURSOR,
             encodings.EncodingTypes.DESKTOP_NAME,
-            #encodings.EncodingTypes.XVP,
-            #encodings.EncodingTypes.CONTINUOUS_UPDATES,
+            # encodings.EncodingTypes.XVP,
+            # encodings.EncodingTypes.CONTINUOUS_UPDATES,
         ]
         encodings.write(self.writer, supported_encodings)
 
         # Request first update
-        fb_update_req.write(self.writer, 0, 0, self.fb_width, self.fb_height, False)
+        fb_update_req.write(
+            self.writer, 0, 0, self.fb_width, self.fb_height, False
+        )
 
     def key_down(self, key):
         key_event.write(self.writer, down=True, key=key)
@@ -412,7 +418,9 @@ class Client(threading.Thread):
         key_event.write(self.writer, down=False, key=key)
 
     def mouse_move(self, button, x, y):
-        pointer_event.write(self.writer, True if button else False, button, x, y)
+        pointer_event.write(
+            self.writer, True if button else False, button, x, y
+        )
 
     def mouse_down(self, button, x, y):
         pointer_event.write(self.writer, True, button, x, y)

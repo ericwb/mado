@@ -1,10 +1,6 @@
 # Copyright © 2020 Eric Brown
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
-import errno
-import os
-import struct
-
 from mado.rfb import unsigned32
 
 

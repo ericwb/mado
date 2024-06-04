@@ -1,7 +1,4 @@
-
-
-class ClientCallback():
-
+class ClientCallback:
     def fb_update(rect, data):
         pass
 
