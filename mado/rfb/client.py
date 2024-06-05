@@ -95,8 +95,6 @@ class Client(threading.Thread):
         while i < num_rects and not last_rect:
             rect = rectangle.Rectangle(self.reader)
 
-            print(rect.encoding)
-
             if rect.encoding == encodings.EncodingTypes.RAW:
                 self.handle_raw(rect)
             elif rect.encoding == encodings.EncodingTypes.COPY_RECT:
