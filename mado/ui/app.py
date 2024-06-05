@@ -326,6 +326,7 @@ class App(callback.ClientCallback):
         image = Image.frombytes(
             "RGB", (rect.width, rect.height), data, "raw", self.image_mode
         )
+
         self.main_img.paste(image, (rect.x, rect.y))
         self.tkimage = ImageTk.PhotoImage(image=self.main_img)
         self.canvas.create_image(0, 0, anchor=tkinter.NW, image=self.tkimage)
